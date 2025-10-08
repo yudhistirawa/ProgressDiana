@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  /* Kembalikan latar belakang global ke putih */
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -14,8 +15,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Juga putih saat mode gelap agar konsisten */
+    --background: #ffffff;
+    --foreground: #171717;
   }
 }
 
