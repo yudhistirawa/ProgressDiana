@@ -1,5 +1,6 @@
 "use client";
-import Link from "next/link";`nimport { clearAuth } from "@/lib/authClient";
+import Link from "next/link";
+import { clearAuth } from "@/lib/authClient";
 import { useEffect, useRef, useState } from "react";
 
 export default function AvatarMenuClient() {
