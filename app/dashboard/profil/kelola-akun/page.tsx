@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import LogoutLink from "@/components/LogoutLink";
 import { useRef, useState } from "react";
 
 export default function KelolaAkunPage() {
@@ -88,7 +89,7 @@ export default function KelolaAkunPage() {
             </Link>
             <div className="font-semibold text-sm sm:text-base">Kelola Akun</div>
           </div>
-          <Link
+          <LogoutLink
             href="/"
             className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm"
             title="Logout"
@@ -97,7 +98,7 @@ export default function KelolaAkunPage() {
               <path d="M10 3a1 1 0 1 0 0 2h6v14h-6a1 1 0 1 0 0 2h7a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-7Z" />
               <path d="M12.7 8.3a1 1 0 1 0-1.4 1.4L13.59 12l-2.3 2.3a1 1 0 1 0 1.42 1.4l3-3a1 1 0 0 0 0-1.4l-3-3Z" />
             </svg>
-          </Link>
+          </LogoutLink>
         </div>
       </header>
 
@@ -240,3 +241,5 @@ export default function KelolaAkunPage() {
     </div>
   );
 }
+
+

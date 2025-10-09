@@ -313,10 +313,22 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
           const photoInfos = answers.filter(a => a.type === "photo" && a.value).map(a => String(a.value)).join(", ") || "-";
           // Simpan ke localStorage sebagai riwayat tahap terkait
           try {
+            // Kaitkan dengan akun petugas yang sedang login (Auth)
+            let uid: string | null = null;
+            let email: string | null = null;
+            try {
+              const { getAuth } = await import("firebase/auth");
+              const auth = getAuth();
+              uid = auth.currentUser?.uid ?? null;
+              email = auth.currentUser?.email ?? null;
+            } catch {}
+
             const data = {
               id: Date.now(),
               stage,
               answers,
+              uid,
+              email,
               tanggal: String(fd.get("tanggal") || dateStr),
               jam: String(fd.get("jam") || timeStr),
               latitude: gps.lat ?? null,
@@ -367,7 +379,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
 
           setTimeout(() => {
             setIsSubmitting(false);
-            alert(`Terkirim!\nFoto: ${photoInfos}`);
+            alert("Data laporan berhasil dikirim.");
           }, 300);
         }}
       >
@@ -759,3 +771,5 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
     </div>
   );
 }
+
+

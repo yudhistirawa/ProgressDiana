@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-const stages = Array.from({ length: 7 }, (_, i) => ({ id: i + 1, title: `Tahap ${i + 1}` }));
+type StageItem = { id: number; title: string };
 
 export default function ProgressGridClient({
   query: controlledQuery,
@@ -11,6 +11,21 @@ export default function ProgressGridClient({
   query?: string;
   onQueryChange?: (v: string) => void;
 }) {
+  const [stages, setStages] = useState<StageItem[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("stages_config");
+      const list = raw ? JSON.parse(raw) : [];
+      const items: StageItem[] = Array.isArray(list)
+        ? list.map((s: any, i: number) => ({ id: i + 1, title: s?.name || `Tahap ${i + 1}` }))
+        : [];
+      setStages(items.length ? items : Array.from({ length: 7 }, (_, i) => ({ id: i + 1, title: `Tahap ${i + 1}` })));
+    } catch {
+      setStages(Array.from({ length: 7 }, (_, i) => ({ id: i + 1, title: `Tahap ${i + 1}` })));
+    }
+  }, []);
+
   const [internalQuery, setInternalQuery] = useState("");
   const query = controlledQuery ?? internalQuery;
   const setQuery = onQueryChange ?? setInternalQuery;
@@ -18,7 +33,7 @@ export default function ProgressGridClient({
     const q = query.trim().toLowerCase();
     if (!q) return stages;
     return stages.filter((s) => s.title.toLowerCase().includes(q));
-  }, [query]);
+  }, [query, stages]);
 
   return (
     <div className="space-y-4">

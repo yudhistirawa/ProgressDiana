@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
 import LogoImg from "@/Logo/Logo_BGD__1_-removebg-preview.png";
+import { setRole, verifyPetugas } from "@/lib/authClient";
 
 export default function Home() {
   const router = useRouter();
@@ -37,11 +38,20 @@ export default function Home() {
 
           <form
             className="mt-6 space-y-4"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               if (isLoading) return;
+              const fd = new FormData(e.currentTarget as HTMLFormElement);
+              const username = String(fd.get("username") || "").trim();
+              const password = String(fd.get("password") || "");
+              const res = await verifyPetugas(username, password);
+              if (!res.ok) {
+                alert(res.message);
+                return;
+              }
               setIsLoading(true);
-              setTimeout(() => router.push("/dashboard"), 500);
+              setRole("petugas");
+              setTimeout(() => router.push("/dashboard"), 300);
             }}
           >
             <div className="space-y-1">

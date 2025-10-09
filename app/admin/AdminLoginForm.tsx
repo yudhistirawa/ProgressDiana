@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { setRole, verifyAdmin } from "@/lib/authClient";
 
 export default function AdminLoginForm({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
@@ -33,11 +34,17 @@ export default function AdminLoginForm({ compact = false }: { compact?: boolean 
 
         <form
           className="mt-2 space-y-4"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             if (isLoading) return;
+            const fd = new FormData(e.currentTarget as HTMLFormElement);
+            const username = String(fd.get("username") || "").trim();
+            const password = String(fd.get("password") || "");
+            const res = await verifyAdmin(username, password);
+            if (!res.ok) { alert(res.message || "Login gagal"); return; }
             setIsLoading(true);
-            setTimeout(() => router.push("/admin/dashboard"), 400);
+            setRole("admin");
+            setTimeout(() => router.push("/admin/dashboard"), 300);
           }}
         >
           <div className="space-y-1">
@@ -131,11 +138,17 @@ export default function AdminLoginForm({ compact = false }: { compact?: boolean 
 
       <form
         className="space-y-4"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           if (isLoading) return;
+          const fd = new FormData(e.currentTarget as HTMLFormElement);
+          const username = String(fd.get("username") || "").trim();
+          const password = String(fd.get("password") || "");
+          const res = await verifyAdmin(username, password);
+          if (!res.ok) { alert(res.message || "Login gagal"); return; }
           setIsLoading(true);
-          setTimeout(() => router.push("/admin/dashboard"), 400);
+          setRole("admin");
+          setTimeout(() => router.push("/admin/dashboard"), 300);
         }}
       >
         <div className="space-y-1">
@@ -206,3 +219,8 @@ export default function AdminLoginForm({ compact = false }: { compact?: boolean 
     </div>
   );
 }
+
+
+
+
+

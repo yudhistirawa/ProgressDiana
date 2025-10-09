@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "next/link";`nimport { clearAuth } from "@/lib/authClient";
 import { useEffect, useRef, useState } from "react";
 
 export default function AvatarMenuClient() {
@@ -70,7 +70,7 @@ export default function AvatarMenuClient() {
             <Link
               href="/"
               className="w-full inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm ring-1 ring-neutral-300 hover:bg-neutral-50 text-red-600"
-              onClick={() => setOpen(false)}
+              onClick={() => { clearAuth(); setOpen(false); }}
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
                 <path d="M10 3a1 1 0 1 0 0 2h6v14h-6a1 1 0 1 0 0 2h7a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-7Z" />
@@ -84,3 +84,7 @@ export default function AvatarMenuClient() {
     </div>
   );
 }
+
+
+
+

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LogoutLink from "@/components/LogoutLink";
 import Image from "next/image";
 import LogoImg from "@/Logo/Logo_BGD__1_-removebg-preview.png";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +25,7 @@ export default function Dashboard() {
           </div>
           <div className="hidden sm:block text-sm font-semibold tracking-wide">Dashboard</div>
           <div className="flex items-center gap-2">
-            <Link
+            <LogoutLink
               href="/"
               title="Keluar"
               className="inline-flex h-9 w-9 items-center justify-center whitespace-nowrap rounded-md border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -33,7 +34,7 @@ export default function Dashboard() {
                 <path d="M10 3a1 1 0 1 0 0 2h6v14h-6a1 1 0 1 0 0 2h7a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-7Z" />
                 <path d="M12.7 8.3a1 1 0 1 0-1.4 1.4L13.59 12l-2.3 2.3a1 1 0 1 0 1.42 1.4l3-3a1 1 0 0 0 0-1.4l-3-3Z" />
               </svg>
-            </Link>
+            </LogoutLink>
             <Avatar fallback="BG" size="sm" className="ml-1" />
           </div>
         </div>
@@ -145,3 +146,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+
