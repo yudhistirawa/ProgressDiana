@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import PageTransition from "@/components/PageTransition";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Halaman Login - Sistem Dokumentasi Progres",
@@ -19,9 +20,11 @@ export default function RootLayout({
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
       >
-        <PageTransition>
-          {children}
-        </PageTransition>
+        <Suspense>
+          <PageTransition>
+            {children}
+          </PageTransition>
+        </Suspense>
       </body>
     </html>
   );

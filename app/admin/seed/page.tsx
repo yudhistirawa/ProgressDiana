@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { initializeApp, getApps, type FirebaseOptions } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, setDoc, serverTimestamp, getFirestore } from "firebase/firestore";
@@ -49,32 +49,45 @@ export default function SeedAdminPage() {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center p-6 bg-white text-neutral-900">
-      <div className="w-full max-w-md rounded-2xl ring-1 ring-neutral-200 p-5 shadow-sm bg-white">
-        <h1 className="text-lg font-semibold mb-2">Bootstrap Admin</h1>
-        <p className="text-sm text-neutral-600 mb-4">
-          Tombol ini akan membuat akun admin default di Firebase Auth dan Firestore:
-          <br />
-          Email: <code>admin@bgd.local</code>, Password: <code>1234567</code>
-        </p>
-        <button
-          onClick={createAdmin}
-          disabled={busy}
-          className="w-full rounded-xl bg-red-600 text-white px-4 py-2 font-semibold disabled:opacity-60"
-        >
-          {busy ? "Memproses..." : "Buat Admin Default"}
-        </button>
-
-        {status && (
-          <div className="mt-4 rounded-lg bg-neutral-50 ring-1 ring-neutral-200 p-3 text-sm whitespace-pre-wrap">
-            {status}
+    <Suspense fallback={
+      <div className="min-h-screen grid place-items-center p-6 bg-white text-neutral-900">
+        <div className="w-full max-w-md rounded-2xl ring-1 ring-neutral-200 p-5 shadow-sm bg-white animate-pulse">
+          <div className="h-6 bg-gray-200 rounded mb-4"></div>
+          <div className="space-y-2 mb-4">
+            <div className="h-4 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
           </div>
-        )}
-
-        <div className="mt-4 text-center">
-          <Link href="/admin" className="text-sm text-blue-600 hover:underline">Kembali ke Login Admin</Link>
+          <div className="h-10 bg-gray-200 rounded"></div>
         </div>
       </div>
-    </div>
+    }>
+      <div className="min-h-screen grid place-items-center p-6 bg-white text-neutral-900">
+        <div className="w-full max-w-md rounded-2xl ring-1 ring-neutral-200 p-5 shadow-sm bg-white">
+          <h1 className="text-lg font-semibold mb-2">Bootstrap Admin</h1>
+          <p className="text-sm text-neutral-600 mb-4">
+            Tombol ini akan membuat akun admin default di Firebase Auth dan Firestore:
+            <br />
+            Email: <code>admin@bgd.local</code>, Password: <code>1234567</code>
+          </p>
+          <button
+            onClick={createAdmin}
+            disabled={busy}
+            className="w-full rounded-xl bg-red-600 text-white px-4 py-2 font-semibold disabled:opacity-60"
+          >
+            {busy ? "Memproses..." : "Buat Admin Default"}
+          </button>
+
+          {status && (
+            <div className="mt-4 rounded-lg bg-neutral-50 ring-1 ring-neutral-200 p-3 text-sm whitespace-pre-wrap">
+              {status}
+            </div>
+          )}
+
+          <div className="mt-4 text-center">
+            <Link href="/admin" className="text-sm text-blue-600 hover:underline">Kembali ke Login Admin</Link>
+          </div>
+        </div>
+      </div>
+    </Suspense>
   );
 }

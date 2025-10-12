@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import AdminLoginForm from "./AdminLoginForm";
 
 export const metadata = {
@@ -51,12 +52,16 @@ export default function AdminLogin() {
         </div>
 
         {/* Right login card */}
-        <AdminLoginForm />
+        <Suspense fallback={<div className="animate-pulse bg-gray-200 rounded-3xl h-96"></div>}>
+          <AdminLoginForm />
+        </Suspense>
       </div>
 
       {/* Mobile single card layout */}
       <div className="sm:hidden relative w-full max-w-md">
-        <AdminLoginForm compact />
+        <Suspense fallback={<div className="animate-pulse bg-gray-200 rounded-3xl h-80"></div>}>
+          <AdminLoginForm compact />
+        </Suspense>
       </div>
     </div>
   );

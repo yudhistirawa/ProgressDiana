@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import HistoryStagesClient from "./HistoryStagesClient";
 
 export const metadata = {
@@ -59,7 +60,18 @@ export default function RiwayatLaporan() {
 
       {/* Content */}
       <main className="mx-auto max-w-4xl px-3 sm:px-4 pb-20 pt-5">
-        <HistoryStagesClient />
+        <Suspense fallback={
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-3 sm:p-4 animate-pulse">
+                <div className="mx-auto mb-3 sm:mb-4 h-16 w-16 sm:h-20 sm:w-20 rounded-xl bg-gray-200"></div>
+                <div className="h-4 bg-gray-200 rounded"></div>
+              </div>
+            ))}
+          </div>
+        }>
+          <HistoryStagesClient />
+        </Suspense>
       </main>
 
       {/* Bottom Nav (mobile only) */}

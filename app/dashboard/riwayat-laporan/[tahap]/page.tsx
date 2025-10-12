@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import RiwayatTahapClient from "../RiwayatTahapClient";
 
 type Props = {
@@ -62,7 +63,24 @@ export default async function RiwayatTahap({ params }: Props) {
       </header>
 
       <main className="mx-auto max-w-4xl px-3 sm:px-4 pb-20 pt-5 space-y-4">
-        <RiwayatTahapClient stage={Number(tahap)} />
+        <Suspense fallback={
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-3 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-gray-200"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                  <div className="h-8 w-8 bg-gray-200 rounded-full"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        }>
+          <RiwayatTahapClient stage={Number(tahap)} />
+        </Suspense>
       </main>
 
       {/* Bottom Nav (mobile only) */}
