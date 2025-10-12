@@ -106,7 +106,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
-  // Dynamic schema from admin (localStorage)
+  // Dynamic schema from admin (Firestore)
   const [schema, setSchema] = useState<FieldSpec[]>([]);
   const [dynPhotoFiles, setDynPhotoFiles] = useState<Array<File | null>>([]);
   const [dynPhotoNames, setDynPhotoNames] = useState<string[]>([]);
@@ -323,7 +323,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
           }
 
           const photoInfos = answers.filter(a => a.type === "photo" && a.value).map(a => String(a.value)).join(", ") || "-";
-          // Simpan ke localStorage sebagai riwayat tahap terkait
+          // Simpan ke Firestore saja (no localStorage)
           try {
             // Kaitkan dengan akun petugas yang sedang login (Auth)
             let uid: string | null = null;
@@ -336,7 +336,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
             } catch {}
 
             const data = {
-              id: Date.now(),
+              id: recId,
               stage,
               answers,
               uid,
@@ -349,49 +349,71 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
               alamat: address || null,
               createdAt: Date.now(),
             };
-            // Simpan ke Firestore
-            try {
-              if (fb) {
+            
+            // Simpan laporan ke Firestore
+            if (fb) {
+              try {
                 const { collection, doc, setDoc, serverTimestamp } = await import("firebase/firestore");
                 const col = collection(fb.db, "Progress_Diana");
                 await setDoc(doc(col, recId), {
                   ...data,
-                  id: recId,
                   ts: serverTimestamp(),
                 });
-              }
-            } catch {}
-            const key = `riwayat_stage_${stage}`;
-            const list: any[] = JSON.parse(localStorage.getItem(key) || "[]");
-            list.push(data);
-            localStorage.setItem(key, JSON.stringify(list));
 
-            // Tambah ke feed notifikasi global
-            const firstTwoTexts = answers.filter((a: any) => a.type === "text").map((a: any) => a.value).filter(Boolean).slice(0, 2);
-            const notif = {
-              id: data.id,
-              stage: data.stage,
-              title: `Laporan Tahap ${data.stage}`,
-              message: firstTwoTexts.join(" • ") || "Laporan masuk",
-              tanggal: data.tanggal,
-              jam: data.jam,
-              createdAt: data.createdAt,
-            };
-            const feedKey = "notif_feed";
-            const feed: any[] = JSON.parse(localStorage.getItem(feedKey) || "[]");
-            feed.push(notif);
-            localStorage.setItem(feedKey, JSON.stringify(feed));
-            // Broadcast ke tab lain
-            try {
-              const bc = new BroadcastChannel("laporan-notif");
-              bc.postMessage({ type: "new", item: notif });
-              bc.close();
-            } catch {}
-          } catch {}
+                // Tambah ke collection notifikasi
+                const firstTwoTexts = answers.filter((a: any) => a.type === "text").map((a: any) => a.value).filter(Boolean).slice(0, 2);
+                const notif = {
+                  id: recId,
+                  stage: data.stage,
+                  title: `Laporan Tahap ${data.stage}`,
+                  message: firstTwoTexts.join(" • ") || "Laporan masuk",
+                  tanggal: data.tanggal,
+                  jam: data.jam,
+                  createdAt: data.createdAt,
+                  read: false,
+                };
+                const notifCol = collection(fb.db, "Progress_Diana_Notifikasi");
+                await setDoc(doc(notifCol, recId), {
+                  ...notif,
+                  ts: serverTimestamp(),
+                });
+
+                // Trigger real-time update untuk admin
+                console.log("✅ Data berhasil disimpan ke Firestore:", recId);
+                console.log("📋 Data structure:", data);
+              } catch (firestoreError: any) {
+                console.error("❌ Firestore Error:", firestoreError);
+                console.error("❌ Error Code:", firestoreError.code);
+                console.error("❌ Error Message:", firestoreError.message);
+                alert(`❌ Gagal menyimpan ke Firestore: ${firestoreError.message}`);
+                throw firestoreError;
+              }
+            } else {
+              console.error("❌ Firebase client tidak tersedia");
+              throw new Error("Firebase tidak tersedia");
+            }
+          } catch (err) {
+            console.error("Error saving to Firestore:", err);
+            throw err;
+          }
 
           setTimeout(() => {
             setIsSubmitting(false);
-            alert("Data laporan berhasil dikirim.");
+            console.log("✅ Form submitted successfully!");
+            console.log("📊 Data yang dikirim:", {
+              recId,
+              stage,
+              answers: answers.length,
+              hasPhoto: answers.some(a => a.type === "photo" && a.value),
+              location: `${gps.lat}, ${gps.lon}`,
+              address: address
+            });
+            console.log("🔥 Firebase config check:", {
+              apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "✅ Set" : "❌ Missing",
+              projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? "✅ Set" : "❌ Missing",
+              storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? "✅ Set" : "❌ Missing"
+            });
+            alert("✅ Data laporan berhasil dikirim ke Firestore!");
           }, 300);
         }}
       >
@@ -783,5 +805,3 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
     </div>
   );
 }
-
-

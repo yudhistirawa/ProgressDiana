@@ -6,6 +6,13 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 type FieldSpec = { id: number; label: string; type: "text" | "photo" };
 type Stage = { id: number; name: string; date: string; fields?: FieldSpec[] | string[] };
 
+type AlertState = {
+  type: 'error' | 'warning' | 'info';
+  title: string;
+  message: string;
+  show: boolean;
+};
+
 const KEY = "stages_config";
 
 function useStages() {
@@ -54,8 +61,38 @@ export default function FormulirTahapanClient() {
   const [addMenuTop, setAddMenuTop] = useState(false);
   const [addMenuRow, setAddMenuRow] = useState<number | null>(null);
 
+  // Delete confirmation alert state
+  const [deleteAlert, setDeleteAlert] = useState<AlertState>({ type: 'warning', title: '', message: '', show: false });
+  const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
+
+  // Photo preview modal state
+  const [photoPreview, setPhotoPreview] = useState<{ url: string; title: string; show: boolean }>({ url: '', title: '', show: false });
+
   // Tampilkan sesuai urutan yang tersimpan (bisa di-reorder)
   const ordered = useMemo(() => stages, [stages]);
+
+  const showDeleteAlert = (stage: Stage) => {
+    setStageToDelete(stage);
+    setDeleteAlert({
+      type: 'warning',
+      title: 'Konfirmasi Hapus',
+      message: `Apakah Anda yakin ingin menghapus tahapan "${stage.name}"?\n\nData yang sudah dihapus tidak dapat dikembalikan.`,
+      show: true
+    });
+  };
+
+  const confirmDelete = () => {
+    if (stageToDelete) {
+      save(stages.filter(x => x.id !== stageToDelete.id));
+      setDeleteAlert(prev => ({ ...prev, show: false }));
+      setStageToDelete(null);
+    }
+  };
+
+  const closeDeleteAlert = () => {
+    setDeleteAlert(prev => ({ ...prev, show: false }));
+    setStageToDelete(null);
+  };
 
   const move = <T,>(arr: T[], from: number, to: number) => {
     if (from === to || from < 0 || to < 0 || from >= arr.length || to >= arr.length) return arr;
@@ -87,7 +124,7 @@ export default function FormulirTahapanClient() {
                   </button>
                   <button type="button" onClick={()=>{ setShowForm({id:s.id}); setName(s.name); setDate(s.date); }} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Edit</button>
                   <button type="button" onClick={()=> setDetail(s)} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Detail</button>
-                  <button type="button" onClick={()=> save(stages.filter(x=>x.id!==s.id))} className="inline-flex items-center justify-center h-7 px-3 rounded-full bg-red-500 text-white hover:bg-red-600 text-xs">Hapus</button>
+                  <button type="button" onClick={() => showDeleteAlert(s)} className="inline-flex items-center justify-center h-7 px-3 rounded-full bg-red-500 text-white hover:bg-red-600 text-xs">Hapus</button>
                 </div>
               </div>
             </div>
@@ -257,26 +294,262 @@ export default function FormulirTahapanClient() {
       )}
 
       {detail && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={()=> setDetail(null)}>
-          <div className="relative w-full max-w-md" onClick={(e)=> e.stopPropagation()}>
-            <div className="rounded-2xl bg-white ring-1 ring-neutral-200 shadow-xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-neutral-200 font-semibold text-sm">Detail Tahapan</div>
-              <div className="p-4 text-sm space-y-2">
-                <div><span className="text-neutral-500">Nama:</span> {detail.name}</div>
-                <div><span className="text-neutral-500">Tanggal:</span> {new Date(detail.date).toLocaleDateString('id-ID')}</div>
-                <div>
-                  <div className="text-neutral-500">Field Formulir:</div>
-                  <ul className="list-disc pl-5 mt-1 space-y-1">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Animated Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300"
+            onClick={() => setDetail(null)}
+          />
+
+          {/* Detail Modal Card */}
+          <div className="relative w-full max-w-lg animate-in slide-in-from-top-3 duration-500 transform-gpu" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl shadow-2xl ring-1 ring-neutral-200 overflow-hidden transform-gpu animate-in zoom-in-98 fade-in duration-400 delay-100">
+              {/* Header */}
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100">
+                {/* Info Icon */}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
+                    <path d="M7 4h10a2 2 0 0 1 2 2v14l-5-2-5 2V6a2 2 0 0 1 2-2Z" />
+                  </svg>
+                </div>
+
+                {/* Title */}
+                <div className="flex-1">
+                  <h3 className="font-semibold text-neutral-900 text-base">Detail Tahapan</h3>
+                </div>
+
+                {/* Close button */}
+                <button
+                  onClick={() => setDetail(null)}
+                  className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                  aria-label="Tutup"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden>
+                    <path d="M6.225 4.811a1 1 0 0 0-1.414 1.414L10.586 12 4.81 17.776a1 1 0 1 0 1.414 1.415L12 13.414l5.776 5.776a1 1 0 0 0 1.414-1.414L13.415 12l5.776-5.776a1 1 0 0 0-1.414-1.414L12 10.586 6.225 4.811Z" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="px-5 py-5 space-y-4">
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <div className="text-xs text-neutral-500">Nama Tahapan</div>
+                    <div className="text-sm font-medium text-neutral-800 bg-slate-50 rounded-lg px-3 py-2">{detail.name}</div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-neutral-500">Tanggal</div>
+                    <div className="text-sm font-medium text-neutral-800 bg-slate-50 rounded-lg px-3 py-2">{new Date(detail.date).toLocaleDateString('id-ID')}</div>
+                  </div>
+                </div>
+
+                {/* Field Formulir */}
+                <div className="space-y-3">
+                  <div className="text-xs font-medium text-neutral-700">Field Formulir</div>
+                  <div className="bg-slate-50 rounded-lg p-4 space-y-3">
                     {(detail.fields ?? []).map((f: any, i: number) => (
-                      <li key={i} className="text-neutral-800">{typeof f === 'string' ? f : `${f.label} (${f.type === 'photo' ? 'Foto' : 'Teks'})`}</li>
+                      <div key={i} className="flex items-center justify-between gap-3 p-3 bg-white rounded-lg border border-neutral-200">
+                        <div className="flex items-center gap-3">
+                          {/* Field Type Icon */}
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                            f.type === 'photo' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'
+                          }`}>
+                            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
+                              <path d={
+                                f.type === 'photo'
+                                  ? 'M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm4 10 2.5-3 2 2.5L15 12l3 3H8Z'
+                                  : 'M3 6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6Zm2 1v8h14V7H5Z'
+                              } />
+                            </svg>
+                          </div>
+
+                          {/* Field Info */}
+                          <div>
+                            <div className="text-sm font-medium text-neutral-800">{f.label}</div>
+                            <div className="text-xs text-neutral-500">{f.type === 'photo' ? 'Upload Foto' : 'Field Teks'}</div>
+                          </div>
+                        </div>
+
+                        {/* Preview Button for Photos */}
+                        {f.type === 'photo' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Show photo preview modal
+                              setPhotoPreview({
+                                url: 'https://picsum.photos/400/300?random=' + f.id, // Placeholder URL
+                                title: f.label,
+                                show: true
+                              });
+                            }}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current" aria-hidden>
+                              <path d="M12 5c-6 0-9 7-9 7s3 7 9 7 9-7 9-7-3-7-9-7Zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
+                            </svg>
+                            Preview
+                          </button>
+                        )}
+                      </div>
                     ))}
-                    {(!detail.fields || detail.fields.length===0) && (
-                      <li className="text-neutral-400">Belum ada field</li>
+
+                    {(!detail.fields || detail.fields.length === 0) && (
+                      <div className="text-center py-6 text-sm text-neutral-500">
+                        Belum ada field formulir
+                      </div>
                     )}
-                  </ul>
+                  </div>
                 </div>
               </div>
-              <div className="px-4 py-3 border-t border-neutral-200 text-right"><button type="button" className="inline-flex items-center justify-center h-9 px-4 rounded-xl ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-sm" onClick={()=> setDetail(null)}>Tutup</button></div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-3 px-5 py-4 bg-neutral-50 border-t border-neutral-100">
+                <button
+                  onClick={() => setDetail(null)}
+                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500 transition-all"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modern Delete Confirmation Modal */}
+      {deleteAlert.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Animated Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300"
+            onClick={closeDeleteAlert}
+          />
+
+          {/* Delete Confirmation Card */}
+          <div className="relative w-full max-w-sm animate-in slide-in-from-top-3 duration-500 transform-gpu">
+            <div className="bg-white rounded-2xl shadow-2xl ring-1 ring-neutral-200 overflow-hidden transform-gpu animate-in zoom-in-98 fade-in duration-400 delay-100">
+              {/* Header */}
+              <div className="flex items-center gap-3 px-4 py-4 border-b border-neutral-100">
+                {/* Warning Icon */}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                  </svg>
+                </div>
+
+                {/* Title */}
+                <div className="flex-1">
+                  <h3 className="font-semibold text-neutral-900 text-sm">{deleteAlert.title}</h3>
+                </div>
+
+                {/* Close button */}
+                <button
+                  onClick={closeDeleteAlert}
+                  className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                  aria-label="Tutup"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden>
+                    <path d="M6.225 4.811a1 1 0 0 0-1.414 1.414L10.586 12 4.81 17.776a1 1 0 1 0 1.414 1.415L12 13.414l5.776 5.776a1 1 0 0 0 1.414-1.414L13.415 12l5.776-5.776a1 1 0 0 0-1.414-1.414L12 10.586 6.225 4.811Z" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="px-4 py-4">
+                <p className="text-sm text-neutral-600 leading-relaxed whitespace-pre-line">{deleteAlert.message}</p>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-3 px-4 py-4 bg-neutral-50 border-t border-neutral-100">
+                <button
+                  onClick={closeDeleteAlert}
+                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500 transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Preview Modal */}
+      {photoPreview.show && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          {/* Animated Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-300"
+            onClick={() => setPhotoPreview(prev => ({ ...prev, show: false }))}
+          />
+
+          {/* Photo Preview Card */}
+          <div className="relative w-full max-w-2xl animate-in slide-in-from-top-3 duration-500 transform-gpu" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl shadow-2xl ring-1 ring-neutral-200 overflow-hidden transform-gpu animate-in zoom-in-98 fade-in duration-400 delay-100">
+              {/* Header */}
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100">
+                {/* Photo Icon */}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-600">
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
+                    <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm4 10 2.5-3 2 2.5L15 12l3 3H8Z" />
+                  </svg>
+                </div>
+
+                {/* Title */}
+                <div className="flex-1">
+                  <h3 className="font-semibold text-neutral-900 text-base">Preview Foto: {photoPreview.title}</h3>
+                </div>
+
+                {/* Close button */}
+                <button
+                  onClick={() => setPhotoPreview(prev => ({ ...prev, show: false }))}
+                  className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                  aria-label="Tutup"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden>
+                    <path d="M6.225 4.811a1 1 0 0 0-1.414 1.414L10.586 12 4.81 17.776a1 1 0 1 0 1.414 1.415L12 13.414l5.776 5.776a1 1 0 0 0 1.414-1.414L13.415 12l5.776-5.776a1 1 0 0 0-1.414-1.414L12 10.586 6.225 4.811Z" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Photo Content */}
+              <div className="px-5 py-5">
+                <div className="bg-slate-50 rounded-lg p-4 flex items-center justify-center">
+                  <img
+                    src={photoPreview.url}
+                    alt={photoPreview.title}
+                    className="max-w-full max-h-96 object-contain rounded-lg shadow-lg"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Image+Not+Found';
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-3 px-5 py-4 bg-neutral-50 border-t border-neutral-100">
+                <button
+                  onClick={() => setPhotoPreview(prev => ({ ...prev, show: false }))}
+                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500 transition-all"
+                >
+                  Tutup
+                </button>
+                <a
+                  href={photoPreview.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+                >
+                  Buka di Tab Baru
+                </a>
+              </div>
             </div>
           </div>
         </div>

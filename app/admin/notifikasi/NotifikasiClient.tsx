@@ -1,14 +1,16 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { getFirebaseClient } from "../../../lib/firebaseClient";
 
 type Notif = {
-  id: number;
+  id: string;
   stage: number;
   title: string;
   message: string;
   tanggal: string;
   jam: string;
   createdAt: number;
+  read: boolean;
 };
 
 export default function NotifikasiClient() {
@@ -16,33 +18,58 @@ export default function NotifikasiClient() {
   const [query, setQuery] = useState("");
   const [asc, setAsc] = useState(false);
 
-  const loadFeed = () => {
+  const loadFeed = async () => {
+    const fb = getFirebaseClient();
+    if (!fb) {
+      setItems([]);
+      return;
+    }
+    
     try {
-      const raw = localStorage.getItem("notif_feed");
-      setItems(raw ? (JSON.parse(raw) as Notif[]) : []);
-    } catch {
+      const { collection, query, orderBy, getDocs } = await import("firebase/firestore");
+      const col = collection(fb.db, "Progress_Diana_Notifikasi");
+      const q = query(col, orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      const notifications = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Notif[];
+      setItems(notifications);
+    } catch (err) {
+      console.error("Error loading notifications:", err);
       setItems([]);
     }
   };
 
   useEffect(() => {
-    loadFeed();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "notif_feed") loadFeed();
+    const load = async () => {
+      const fb = getFirebaseClient();
+      if (!fb) {
+        setItems([]);
+        return;
+      }
+
+      try {
+        const { collection, query, orderBy, onSnapshot } = await import("firebase/firestore");
+        const col = collection(fb.db, "Progress_Diana_Notifikasi");
+        const q = query(col, orderBy("createdAt", "desc"));
+
+        // Use onSnapshot for real-time updates
+        const unsubscribe = onSnapshot(q, (snap) => {
+          const notifications = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Notif[];
+          setItems(notifications);
+        }, (err) => {
+          console.error("Error loading notifications:", err);
+          setItems([]);
+        });
+
+        return unsubscribe;
+      } catch (err) {
+        console.error("Error setting up notifications listener:", err);
+        setItems([]);
+      }
     };
-    window.addEventListener("storage", onStorage);
-    let bc: BroadcastChannel | null = null;
-    try {
-      bc = new BroadcastChannel("laporan-notif");
-      bc.onmessage = (ev) => {
-        if (ev?.data?.type === "new" && ev.data.item) {
-          setItems((prev) => [ev.data.item, ...prev]);
-        }
-      };
-    } catch {}
+
+    const unsubscribe = load();
     return () => {
-      window.removeEventListener("storage", onStorage);
-      bc?.close?.();
+      unsubscribe?.then(unsub => unsub?.());
     };
   }, []);
 
@@ -113,4 +140,3 @@ export default function NotifikasiClient() {
     </div>
   );
 }
-

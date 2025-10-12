@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getFirebaseClient } from "../../../lib/firebaseClient";
 
 type DisplayItem = {
-  id: number;
+  id: string;
   createdAt: number;
   tanggal: string;
   jam: string;
@@ -18,86 +18,74 @@ type DisplayItem = {
 };
 
 export default function RiwayatTahapClient({ stage }: { stage: number }) {
-  const storageKey = `riwayat_stage_${stage}`;
   const [items, setItems] = useState<DisplayItem[]>([]);
   const [query, setQuery] = useState("");
   const [asc, setAsc] = useState(false);
   const [selected, setSelected] = useState<DisplayItem | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = () => {
-      try {
-        const raw = localStorage.getItem(storageKey);
-        let src: any[] = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(src) || src.length === 0) {
-          const now = new Date();
-          const seed = {
-            id: Date.now(),
-            stage,
-            tanggal: now.toLocaleDateString("id-ID"),
-            jam: now.toLocaleTimeString("id-ID", { hour12: false }),
-            latitude: null,
-            longitude: null,
-            accuracy: null,
-            alamat: null,
-            createdAt: Date.now(),
-            answers: [{ label: "Riwayat", type: "text", value: "Belum ada data" }],
-            __seed: true,
-          } as any;
-          src = [seed];
-          try { localStorage.setItem(storageKey, JSON.stringify(src)); } catch {}
-        }
-        const mapped: DisplayItem[] = src.map((r) => {
-          const answers = Array.isArray(r?.answers)
-            ? (r.answers as any[]).map((a) => ({ label: a.label, type: a.type, value: a.value }))
-            : undefined;
-          const firstTwo = answers?.filter((a) => a.type !== "photo").map((a) => String(a.value || "")).filter(Boolean).slice(0, 2) || [];
-          const files = answers?.filter((a) => a.type === "photo").map((a) => String(a.value || "")).filter(Boolean);
-          const title = r?.pekerjaan || firstTwo[0] || "-";
-          const subtitle = r?.lokasi || firstTwo[1] || "-";
-          return {
-            id: r.id,
-            createdAt: r.createdAt ?? Date.now(),
-            tanggal: r.tanggal || "",
-            jam: r.jam || "",
-            latitude: r.latitude ?? null,
-            longitude: r.longitude ?? null,
-            accuracy: r.accuracy ?? null,
-            alamat: r.alamat ?? null,
-            title,
-            subtitle,
-            answers,
-            files,
-          } as DisplayItem;
-        });
-        setItems(mapped);
-      } catch {
-        setItems([]);
-      }
-    };
-    load();
-    // Try load from Firestore as well
-    (async () => {
+    const load = async () => {
+      setLoading(true);
       const fb = getFirebaseClient();
-      if (!fb) return;
+      if (!fb) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const { collection, query, where, orderBy, getDocs } = await import("firebase/firestore");
+        const { collection, query, where, orderBy, onSnapshot } = await import("firebase/firestore");
         const col = collection(fb.db, "Progress_Diana");
         const q = query(col, where("stage", "==", stage), orderBy("createdAt", "desc"));
-        const snap = await getDocs(q);
-        const cloud = snap.docs.map((d) => d.data() as any);
-        if (cloud.length) {
-          localStorage.setItem(storageKey, JSON.stringify(cloud));
-          load();
-        }
-      } catch {}
-    })();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === storageKey) load();
+
+        // Use onSnapshot for real-time updates
+        const unsubscribe = onSnapshot(q, (snap) => {
+          const cloud = snap.docs.map((d) => {
+            const data = d.data();
+            const answers = Array.isArray(data?.answers)
+              ? (data.answers as any[]).map((a) => ({ label: a.label, type: a.type, value: a.value }))
+              : undefined;
+            const firstTwo = answers?.filter((a) => a.type !== "photo").map((a) => String(a.value || "")).filter(Boolean).slice(0, 2) || [];
+            const files = answers?.filter((a) => a.type === "photo").map((a) => String(a.value || "")).filter(Boolean);
+            const title = data?.pekerjaan || firstTwo[0] || "-";
+            const subtitle = data?.lokasi || firstTwo[1] || "-";
+
+            return {
+              id: d.id,
+              createdAt: data.createdAt ?? Date.now(),
+              tanggal: data.tanggal || "",
+              jam: data.jam || "",
+              latitude: data.latitude ?? null,
+              longitude: data.longitude ?? null,
+              accuracy: data.accuracy ?? null,
+              alamat: data.alamat ?? null,
+              title,
+              subtitle,
+              answers,
+              files,
+            } as DisplayItem;
+          });
+          setItems(cloud);
+          setLoading(false);
+        }, (err) => {
+          console.error("Error loading from Firestore:", err);
+          setItems([]);
+          setLoading(false);
+        });
+
+        return unsubscribe;
+      } catch (err) {
+        console.error("Error setting up Firestore listener:", err);
+        setItems([]);
+        setLoading(false);
+      }
     };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [storageKey]);
+
+    const unsubscribe = load();
+    return () => {
+      unsubscribe?.then(unsub => unsub?.());
+    };
+  }, [stage]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
