@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, createContext, useContext } from 'react';
+import { ReactNode, useEffect, useState, createContext, useContext } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 // Global Transition Context for component-level transitions
@@ -62,7 +62,7 @@ export default function PageTransition({ children }: { children: React.ReactNode
     <TransitionContext.Provider value={transitionContext}>
       {/* Page Content with ultra smooth fade transitions only */}
       <div
-        className={`transition-all duration-400 ease-out transform ${
+        className={`transition-all duration-[400ms] ease-out ${
           transitionPhase === 'fade-out'
             ? 'opacity-0 scale-[0.995] translate-y-1'
             : 'opacity-100 scale-100 translate-y-0'
