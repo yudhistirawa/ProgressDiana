@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { getFirebaseClient } from "@/lib/firebaseClient";
+import { doc, getDoc } from "firebase/firestore";
 
 type StageItem = { id: number; name: string };
 
@@ -8,13 +10,18 @@ export default function HistoryStagesClient() {
   const [stages, setStages] = useState<StageItem[]>([]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("stages_config");
-      const list = raw ? JSON.parse(raw) : [];
-      setStages(Array.isArray(list) ? list : []);
-    } catch {
-      setStages([]);
-    }
+    const fb = getFirebaseClient();
+    if (!fb) return;
+    (async () => {
+      try {
+        const ref = doc(fb.db, "config", "stages_config");
+        const snap = await getDoc(ref);
+        const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
+        setStages(Array.isArray(list) ? list : []);
+      } catch {
+        setStages([]);
+      }
+    })();
   }, []);
 
   const items = useMemo(

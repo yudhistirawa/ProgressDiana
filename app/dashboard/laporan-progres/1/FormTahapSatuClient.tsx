@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { getFirebaseClient } from "../../../../lib/firebaseClient";
+import { doc, getDoc } from "firebase/firestore";
 
 type FieldSpec = { id: number; label: string; type: "text" | "photo" };
 
@@ -129,38 +130,49 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
 
   // Load schema per stage
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("stages_config");
-      const list = raw ? JSON.parse(raw) : [];
-      const item = list?.[stage - 1] ?? list?.[0];
-      let fields: FieldSpec[] = [];
-      if (item?.fields) {
-        fields = (item.fields as any[]).map((f: any, i: number) =>
-          typeof f === "string"
-            ? { id: Date.now() + i, label: f, type: "text" }
-            : { id: f.id ?? Date.now() + i, label: f.label ?? String(f.name ?? "Field"), type: f.type === "photo" ? "photo" : "text" }
-        );
-      } else if (item?.forms) {
-        fields = (item.forms as any[]).map((f: any, i: number) => ({ id: f.id ?? Date.now() + i, label: f.name ?? "Field", type: "text" }));
-      } else {
-        fields = [
+    (async () => {
+      try {
+        const fb = getFirebaseClient();
+        if (!fb) {
+          setSchema([
+            { id: 1, label: "Nama", type: "text" },
+            { id: 2, label: "Lokasi Proyek", type: "text" },
+          ]);
+          return;
+        }
+        const ref = doc(fb.db, "config", "stages_config");
+        const snap = await getDoc(ref);
+        const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
+        const item = Array.isArray(list) ? (list[stage - 1] ?? list[0]) : undefined;
+        let fields: FieldSpec[] = [];
+        if (item?.fields) {
+          fields = (item.fields as any[]).map((f: any, i: number) =>
+            typeof f === "string"
+              ? { id: Date.now() + i, label: f, type: "text" }
+              : { id: f.id ?? Date.now() + i, label: f.label ?? String(f.name ?? "Field"), type: f.type === "photo" ? "photo" : "text" }
+          );
+        } else if (item?.forms) {
+          fields = (item.forms as any[]).map((f: any, i: number) => ({ id: f.id ?? Date.now() + i, label: f.name ?? "Field", type: "text" }));
+        } else {
+          fields = [
+            { id: 1, label: "Nama", type: "text" },
+            { id: 2, label: "Lokasi Proyek", type: "text" },
+          ];
+        }
+        setSchema(fields);
+        const size = fields.length;
+        setDynPhotoFiles(Array.from({ length: size }, () => null));
+        setDynPhotoNames(Array.from({ length: size }, () => ""));
+        setDynPhotoPreviews(Array.from({ length: size }, () => null));
+        setUploadPerc(Array.from({ length: size }, () => 0));
+        setUploadErr(Array.from({ length: size }, () => null));
+      } catch {
+        setSchema([
           { id: 1, label: "Nama", type: "text" },
           { id: 2, label: "Lokasi Proyek", type: "text" },
-        ];
+        ]);
       }
-      setSchema(fields);
-      const size = fields.length;
-      setDynPhotoFiles(Array.from({ length: size }, () => null));
-      setDynPhotoNames(Array.from({ length: size }, () => ""));
-      setDynPhotoPreviews(Array.from({ length: size }, () => null));
-      setUploadPerc(Array.from({ length: size }, () => 0));
-      setUploadErr(Array.from({ length: size }, () => null));
-    } catch {
-      setSchema([
-        { id: 1, label: "Nama", type: "text" },
-        { id: 2, label: "Lokasi Proyek", type: "text" },
-      ]);
-    }
+    })();
   }, [stage]);
 
   // Geolocation realtime

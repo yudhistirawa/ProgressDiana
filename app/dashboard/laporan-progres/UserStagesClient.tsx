@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { getFirebaseClient } from "@/lib/firebaseClient";
+import { doc, getDoc } from "firebase/firestore";
 
 type FieldSpec = { id: number; label: string; type: "text" | "photo" };
 type StageItem = { id: number; name: string; date?: string | number; fields?: FieldSpec[] | any[] };
@@ -11,13 +13,22 @@ export default function UserStagesClient() {
   const [stages, setStages] = useState<StageItem[]>([]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      const list: StageItem[] = raw ? JSON.parse(raw) : [];
-      setStages(Array.isArray(list) ? list : []);
-    } catch {
-      setStages([]);
-    }
+    const fb = getFirebaseClient();
+    if (!fb) return; // require Firebase configured
+    (async () => {
+      try {
+        const ref = doc(fb.db, "config", KEY);
+        const snap = await getDoc(ref);
+        const list = snap.exists() ? (snap.data()?.list as StageItem[] | undefined) : undefined;
+        if (Array.isArray(list)) {
+          setStages(list);
+        } else {
+          setStages([]);
+        }
+      } catch {
+        setStages([]);
+      }
+    })();
   }, []);
 
   const items = useMemo(() => stages.map((s, i) => ({ id: i + 1, title: s.name || `Laporan ${i + 1}` })), [stages]);

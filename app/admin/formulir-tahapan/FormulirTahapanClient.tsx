@@ -1,5 +1,7 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getFirebaseClient } from "@/lib/firebaseClient";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 type FieldSpec = { id: number; label: string; type: "text" | "photo" };
 type Stage = { id: number; name: string; date: string; fields?: FieldSpec[] | string[] };
@@ -7,17 +9,29 @@ type Stage = { id: number; name: string; date: string; fields?: FieldSpec[] | st
 const KEY = "stages_config";
 
 function useStages() {
-  const [stages, setStages] = useState<Stage[]>(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      return raw ? (JSON.parse(raw) as Stage[]) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [stages, setStages] = useState<Stage[]>([]);
+  // Load from Firestore only
+  useEffect(() => {
+    const fb = getFirebaseClient();
+    if (!fb) return;
+    (async () => {
+      try {
+        const ref = doc(fb.db, "config", KEY);
+        const snap = await getDoc(ref);
+        const list = snap.exists() ? (snap.data()?.list as Stage[] | undefined) : undefined;
+        setStages(Array.isArray(list) ? list : []);
+      } catch {
+        setStages([]);
+      }
+    })();
+  }, []);
+
   const save = (next: Stage[]) => {
     setStages(next);
-    try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
+    const fb = getFirebaseClient();
+    if (fb) {
+      setDoc(doc(fb.db, "config", KEY), { list: next, updatedAt: Date.now() }).catch(() => {});
+    }
   };
   return { stages, save };
 }

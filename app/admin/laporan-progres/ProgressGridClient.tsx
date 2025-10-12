@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { getFirebaseClient } from "@/lib/firebaseClient";
+import { doc, getDoc } from "firebase/firestore";
 
 type StageItem = { id: number; title: string };
 
@@ -14,16 +16,21 @@ export default function ProgressGridClient({
   const [stages, setStages] = useState<StageItem[]>([]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("stages_config");
-      const list = raw ? JSON.parse(raw) : [];
-      const items: StageItem[] = Array.isArray(list)
-        ? list.map((s: any, i: number) => ({ id: i + 1, title: s?.name || `Tahap ${i + 1}` }))
-        : [];
-      setStages(items.length ? items : Array.from({ length: 7 }, (_, i) => ({ id: i + 1, title: `Tahap ${i + 1}` })));
-    } catch {
-      setStages(Array.from({ length: 7 }, (_, i) => ({ id: i + 1, title: `Tahap ${i + 1}` })));
-    }
+    const fb = getFirebaseClient();
+    if (!fb) return;
+    (async () => {
+      try {
+        const ref = doc(fb.db, "config", "stages_config");
+        const snap = await getDoc(ref);
+        const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
+        const items: StageItem[] = Array.isArray(list)
+          ? list.map((s: any, i: number) => ({ id: i + 1, title: s?.name || `Tahap ${i + 1}` }))
+          : [];
+        setStages(items);
+      } catch {
+        setStages([]);
+      }
+    })();
   }, []);
 
   const [internalQuery, setInternalQuery] = useState("");
