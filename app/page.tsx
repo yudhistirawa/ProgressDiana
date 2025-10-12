@@ -51,7 +51,7 @@ export default function Home() {
               }
               setIsLoading(true);
               setRole("petugas");
-              setTimeout(() => router.push("/dashboard/notifikasi"), 300);
+              setTimeout(() => router.push("/dashboard"), 300);
             }}
           >
             <div className="space-y-1">
