@@ -60,6 +60,8 @@ export default function FormulirTahapanClient() {
   const [renaming, setRenaming] = useState<null | { index: number; value: string }>(null);
   const [addMenuTop, setAddMenuTop] = useState(false);
   const [addMenuRow, setAddMenuRow] = useState<number | null>(null);
+  const [editingStage, setEditingStage] = useState<Stage | null>(null);
+  const [editFields, setEditFields] = useState<FieldSpec[]>([]);
 
   // Delete confirmation alert state
   const [deleteAlert, setDeleteAlert] = useState<AlertState>({ type: 'warning', title: '', message: '', show: false });
@@ -123,6 +125,7 @@ export default function FormulirTahapanClient() {
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M12 18 18 12H6l6 6Z"/></svg>
                   </button>
                   <button type="button" onClick={()=>{ setShowForm({id:s.id}); setName(s.name); setDate(s.date); }} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Edit</button>
+                  <button type="button" onClick={()=>{ setEditingStage(s); setEditFields(Array.isArray(s.fields) ? s.fields as FieldSpec[] : []); }} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Edit Form</button>
                   <button type="button" onClick={()=> setDetail(s)} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Detail</button>
                   <button type="button" onClick={() => showDeleteAlert(s)} className="inline-flex items-center justify-center h-7 px-3 rounded-full bg-red-500 text-white hover:bg-red-600 text-xs">Hapus</button>
                 </div>
@@ -474,6 +477,118 @@ export default function FormulirTahapanClient() {
                 >
                   Hapus
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Form Modal */}
+      {editingStage && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditingStage(null)}>
+          <div className="relative w-full max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="rounded-2xl bg-white ring-1 ring-neutral-200 shadow-xl overflow-hidden flex flex-col h-full">
+              <div className="px-4 py-3 border-b border-neutral-200 text-center font-semibold text-sm flex-shrink-0">Edit Formulir: {editingStage.name}</div>
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-neutral-600">
+                    <span className="font-medium">Tahapan:</span> {editingStage.name} |
+                    <span className="font-medium ml-2">Tanggal:</span> {new Date(editingStage.date).toLocaleDateString('id-ID')}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Reset to default fields if empty
+                        if (editFields.length === 0) {
+                          setEditFields([
+                            { id: Date.now(), label: "Nama", type: "text" },
+                            { id: Date.now() + 1, label: "Lokasi Proyek", type: "text" },
+                          ]);
+                        }
+                      }}
+                      className="inline-flex items-center justify-center h-8 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs"
+                    >
+                      Reset Form
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end relative">
+                  <button
+                    type="button"
+                    onClick={() => setAddMenuTop((v) => !v)}
+                    className="inline-flex items-center justify-center h-8 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 mr-1" fill="currentColor" aria-hidden>
+                      <path d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z" />
+                    </svg>
+                    Tambah Field
+                  </button>
+                  {addMenuTop && (
+                    <div className="absolute right-0 top-full mt-2 w-44 rounded-xl bg-white ring-1 ring-neutral-200 shadow-lg p-1 z-10">
+                      <button type="button" onClick={() => { setEditFields((prev)=> [...prev, { id: Date.now(), label: "Field Teks", type: "text" }]); setAddMenuTop(false); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Field Teks</button>
+                      <button type="button" onClick={() => { setEditFields((prev)=> [...prev, { id: Date.now()+1, label: "Upload Foto", type: "photo" }]); setAddMenuTop(false); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Upload Foto</button>
+                    </div>
+                  )}
+                </div>
+
+                {editFields.map((field, idx) => (
+                  <div key={field.id} className="space-y-1">
+                    <div className="text-xs font-medium text-neutral-700 flex items-center gap-2">
+                      <span>{field.label}</span>
+                      <button type="button" onClick={()=> setRenaming({ index: idx, value: field.label })} className="text-neutral-600 hover:text-neutral-800" title="Ganti nama">
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Zm2 1.5h-.5v-.5l9.56-9.56.5.5L5 18.75ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/></svg>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      {field.type === "text" ? (
+                        <input disabled placeholder={field.label} className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-4 py-2.5 text-sm shadow-inner" />
+                      ) : (
+                        <div className="w-full rounded-2xl ring-1 ring-dashed ring-neutral-300 bg-neutral-50 px-4 py-5 text-sm text-neutral-500 grid place-items-center">
+                          <div className="inline-flex items-center gap-2">
+                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm4 10 2.5-3 2 2.5L15 12l3 3H8Z"/></svg>
+                            Upload Foto
+                          </div>
+                        </div>
+                      )}
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                        <div className="relative">
+                          <button type="button" onClick={()=> setAddMenuRow(idx)} className="inline-flex items-center justify-center h-7 w-7 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100" title="Tambah field">
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z"/></svg>
+                          </button>
+                          {addMenuRow === idx && (
+                            <div className="absolute right-0 top-full mt-2 w-40 rounded-xl bg-white ring-1 ring-neutral-200 shadow-lg p-1 z-10">
+                              <button type="button" onClick={() => { const next=[...editFields]; next.splice(idx+1,0,{ id: Date.now(), label: "Field Teks", type: "text" }); setEditFields(next); setAddMenuRow(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Field Teks</button>
+                              <button type="button" onClick={() => { const next=[...editFields]; next.splice(idx+1,0,{ id: Date.now()+1, label: "Upload Foto", type: "photo" }); setEditFields(next); setAddMenuRow(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Upload Foto</button>
+                            </div>
+                          )}
+                        </div>
+                        <button type="button" disabled={idx===0} onClick={()=> { const next=move(editFields, idx, idx-1) as FieldSpec[]; setEditFields(next); }} className="inline-flex items-center justify-center h-7 w-7 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 disabled:opacity-40" title="Pindah ke atas">
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M12 6 6 12h12L12 6Z"/></svg>
+                        </button>
+                        <button type="button" disabled={idx===editFields.length-1} onClick={()=> { const next=move(editFields, idx, idx+1) as FieldSpec[]; setEditFields(next); }} className="inline-flex items-center justify-center h-7 w-7 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 disabled:opacity-40" title="Pindah ke bawah">
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M12 18 18 12H6l6 6Z"/></svg>
+                        </button>
+                        <button type="button" onClick={()=> { if (editFields.length<=1) return; const next=[...editFields]; next.splice(idx,1); setEditFields(next); }} className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-red-500 text-white hover:bg-red-600" title="Hapus field">
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M6 7h12v2H6V7Zm2 3h8l-1 10H9L8 10Zm3-5h2l1 2H10l1-2Z"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="pt-4 flex items-center justify-center gap-3">
+                  <button type="button" onClick={() => setEditingStage(null)} className="rounded-xl bg-white ring-1 ring-neutral-300 px-5 py-2 text-sm hover:bg-neutral-50">Batal</button>
+                  <button type="button" onClick={() => {
+                    // Save the edited form
+                    const updatedStages = stages.map(s =>
+                      s.id === editingStage.id ? { ...s, fields: editFields } : s
+                    );
+                    save(updatedStages);
+                    setEditingStage(null);
+                  }} className="rounded-xl bg-neutral-900 text-white px-6 py-2.5 text-sm font-semibold hover:bg-neutral-800">Simpan Formulir</button>
+                </div>
               </div>
             </div>
           </div>

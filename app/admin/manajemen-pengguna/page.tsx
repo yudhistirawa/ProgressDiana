@@ -48,6 +48,7 @@ export default function ManajemenPengguna() {
             <nav className="p-3 grid gap-2 text-sm">
               <Link href="/admin/dashboard" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Home</Link>
               <Link href="/admin/laporan-progres" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Laporan Progres</Link>
+              <Link href="/admin/rekap-progress" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Rekap Ulang Progress</Link>
               <Link href="/admin/manajemen-pengguna" className="rounded-lg bg-red-600 text-white px-3 py-2">Manajemen Pengguna</Link>
               <Link href="/admin/formulir-tahapan" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Kelola Formulir & Tahapan</Link>
             </nav>
@@ -58,7 +59,7 @@ export default function ManajemenPengguna() {
         <main className="col-span-12 sm:col-span-9">
           <h2 className="text-center text-sm sm:text-base font-semibold mb-6">Manajemen Pengguna</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             <Link href="/admin/manajemen-pengguna/admin" className="group rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 p-6 text-center backdrop-blur hover:-translate-y-0.5">
               <div className="mx-auto mb-4 h-16 w-16 rounded-xl grid place-items-center bg-gradient-to-br from-slate-50 to-slate-100 ring-1 ring-neutral-200 text-neutral-800 group-hover:scale-105 transition-transform" aria-hidden>
                 <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none">
@@ -79,6 +80,19 @@ export default function ManajemenPengguna() {
                 </svg>
               </div>
               <div className="text-sm font-medium">User Pelaksana</div>
+            </Link>
+
+            <Link href="/admin/manajemen-pengguna/admin-petugas" className="group rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 p-6 text-center backdrop-blur hover:-translate-y-0.5">
+              <div className="mx-auto mb-4 h-16 w-16 rounded-xl grid place-items-center bg-gradient-to-br from-slate-50 to-slate-100 ring-1 ring-neutral-200 text-neutral-800 group-hover:scale-105 transition-transform" aria-hidden>
+                <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none">
+                  <circle cx="16" cy="18" r="5" stroke="#0F172A" strokeWidth="3" />
+                  <circle cx="32" cy="18" r="5" stroke="#0F172A" strokeWidth="3" />
+                  <path d="M8 38c0-5.5 4.5-10 10-10" stroke="#0F172A" strokeWidth="3" />
+                  <path d="M30 28c5.5 0 10 4.5 10 10" stroke="#0F172A" strokeWidth="3" />
+                  <path d="M12 12l6-6 6 6" stroke="#0F172A" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div className="text-sm font-medium">User Admin Petugas</div>
             </Link>
           </div>
         </main>

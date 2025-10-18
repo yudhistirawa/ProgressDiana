@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { getFirebaseClient } from "../../../../lib/firebaseClient";
+import { useEffect, useMemo, useState } from "react";
+import { getFirebaseClient } from "./lib/firebaseClient";
 
 type Item = {
   id: string;
@@ -30,16 +30,6 @@ type AlertState = {
   show: boolean;
 };
 
-type EnrichedItem = Item & {
-  displayName: string;
-  namaPetugasLabel: string;
-  pekerjaanLabel: string;
-  jenisPekerjaanLabel: string;
-  lokasiLabel: string;
-  waktuLabel: string;
-  fotoCount: number;
-};
-
 export default function StageReportListClient({ stage }: { stage: number }) {
   const [items, setItems] = useState<Item[]>([]);
   const [query, setQuery] = useState("");
@@ -51,219 +41,12 @@ export default function StageReportListClient({ stage }: { stage: number }) {
   const [editPekerjaan, setEditPekerjaan] = useState("");
   const [editFotoName, setEditFotoName] = useState("");
   const [editTanggal, setEditTanggal] = useState("");
-  const [editTanggalIso, setEditTanggalIso] = useState("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const detailModalRef = useRef<HTMLDivElement | null>(null);
-  const editModalRef = useRef<HTMLDivElement | null>(null);
-  const bodyOverflowRef = useRef<string | null>(null);
-  const isModalOpen = Boolean(selected || editItem);
 
   // Delete confirmation alert state
   const [deleteAlert, setDeleteAlert] = useState<AlertState>({ type: 'warning', title: '', message: '', show: false });
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
-
-  useEffect(() => {
-    if (!selected || typeof window === "undefined") return;
-    const target = detailModalRef.current;
-    if (!target) return;
-    const timeout = window.setTimeout(() => target.focus(), 0);
-    return () => window.clearTimeout(timeout);
-  }, [selected]);
-
-  useEffect(() => {
-    if (!editItem || typeof window === "undefined") return;
-    const target = editModalRef.current;
-    if (!target) return;
-    const timeout = window.setTimeout(() => target.focus(), 0);
-    return () => window.clearTimeout(timeout);
-  }, [editItem]);
-
-  const normalizeDateToISO = (value: string | null | undefined): string => {
-    if (!value) return "";
-    const trimmed = String(value).trim();
-    if (!trimmed) return "";
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-
-    const digits = trimmed.match(/\d+/g);
-    if (!digits || digits.length < 3) return "";
-    let [a, b, c] = digits;
-    const parse = (yearStr: string, monthStr: string, dayStr: string) => {
-      const year = Number(yearStr);
-      const month = Number(monthStr);
-      const day = Number(dayStr);
-      if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return "";
-      if (year < 1900 || year > 3000) return "";
-      if (month < 1 || month > 12) return "";
-      if (day < 1 || day > 31) return "";
-      const dt = new Date(Date.UTC(year, month - 1, day));
-      if (dt.getUTCFullYear() !== year || dt.getUTCMonth() !== month - 1 || dt.getUTCDate() !== day) return "";
-      return `${year.toString().padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    };
-
-    if (a.length === 4) {
-      return parse(a, b, c);
-    }
-    if (c.length === 4) {
-      return parse(c, b, a);
-    }
-    return parse(a, b, c);
-  };
-
-  const formatISOToDisplay = (iso: string): string => {
-    if (!iso) return "";
-    const parts = iso.split("-");
-    if (parts.length !== 3) return iso;
-    const [year, month, day] = parts;
-    if (!year || !month || !day) return iso;
-    return `${day}/${month}/${year}`;
-  };
-
-  const populateEditFields = (item: Item) => {
-    let namaVal = item.nama || "";
-    let lokasiVal = item.lokasi || "";
-    let pekerjaanVal = item.pekerjaan || "";
-    let fotoVal = item.fotoWajibName || item.fotoOpsionalName || "";
-    let displayDate = (item.tanggal || "").trim();
-    let isoDate = normalizeDateToISO(displayDate);
-
-    if (!displayDate && isoDate) {
-      displayDate = formatISOToDisplay(isoDate);
-    }
-
-    if (Array.isArray(item.answers)) {
-      item.answers.forEach((answer) => {
-        if (!answer || typeof answer.label !== "string") return;
-        const label = answer.label.toLowerCase();
-        const type = String(answer.type || "").toLowerCase();
-        const rawValue = answer.value != null ? String(answer.value) : "";
-        if (!rawValue) return;
-
-        if (type === "text") {
-          if (label.includes("nama") && !label.includes("keterangan")) {
-            namaVal = rawValue;
-          }
-          if (label.includes("lokasi") || label.includes("alamat")) {
-            lokasiVal = rawValue;
-          }
-          if (label.includes("pekerjaan") || label.includes("kegiatan")) {
-            pekerjaanVal = rawValue;
-          }
-          if (label.includes("tanggal")) {
-            const parsed = normalizeDateToISO(rawValue);
-            if (parsed) {
-              isoDate = parsed;
-              displayDate = formatISOToDisplay(parsed);
-            } else {
-              displayDate = rawValue;
-            }
-          }
-        }
-      });
-    }
-
-    if (!isoDate && displayDate) {
-      const parsed = normalizeDateToISO(displayDate);
-      if (parsed) {
-        isoDate = parsed;
-        displayDate = formatISOToDisplay(parsed);
-      }
-    }
-
-    setEditNama(namaVal);
-    setEditLokasi(lokasiVal);
-    setEditPekerjaan(pekerjaanVal);
-    setEditFotoName(fotoVal);
-    setEditTanggal(displayDate);
-    setEditTanggalIso(isoDate);
-  };
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const body = document.body;
-    if (!body) return;
-
-    if (isModalOpen) {
-      if (bodyOverflowRef.current === null) {
-        bodyOverflowRef.current = body.style.overflow;
-      }
-      body.style.overflow = "hidden";
-      return () => {
-        body.style.overflow = bodyOverflowRef.current ?? "";
-        bodyOverflowRef.current = null;
-      };
-    }
-
-    if (bodyOverflowRef.current !== null) {
-      body.style.overflow = bodyOverflowRef.current ?? "";
-      bodyOverflowRef.current = null;
-    }
-
-    return () => {};
-  }, [isModalOpen]);
-
-  const enrichItem = (item: Item): EnrichedItem => {
-    let headerNama = item.nama || "";
-    let keteranganNama = "";
-    let pekerjaan = item.pekerjaan || "";
-    let jenisPekerjaan = "";
-    let lokasi = item.lokasi || "";
-
-    if (Array.isArray(item.answers)) {
-      item.answers.forEach((answer) => {
-        if (!answer || typeof answer.label !== "string") return;
-        const label = answer.label.toLowerCase();
-        const type = String(answer.type || "").toLowerCase();
-        const value = answer.value != null ? String(answer.value) : "";
-
-        if (type === "text") {
-          const isKeteranganNama = label.includes("keterangan") && label.includes("nama");
-          const isNamaPetugas = label.includes("nama") && label.includes("petugas") && !label.includes("keterangan");
-
-          if (isKeteranganNama) {
-            keteranganNama = value;
-            return;
-          }
-
-          if (!headerNama && (isNamaPetugas || label.includes("nama"))) {
-            headerNama = value;
-          }
-        }
-
-        if (type === "text" && label.includes("pekerjaan")) {
-          if (label.includes("jenis")) {
-            jenisPekerjaan = value;
-          } else {
-            pekerjaan = value;
-          }
-        }
-
-        if (!lokasi && type === "text" && (label.includes("lokasi") || label.includes("alamat"))) {
-          lokasi = value;
-        }
-      });
-    }
-
-    if (!jenisPekerjaan) jenisPekerjaan = pekerjaan;
-    if (!headerNama) headerNama = item.nama || keteranganNama || "";
-
-    const waktuLabel = [item.tanggal || "", item.jam || ""].filter(Boolean).join(" ");
-    const fotoCount = Array.isArray(item.answers)
-      ? item.answers.filter((a) => String(a.type || "").toLowerCase() === "photo" && a.value).length
-      : 0;
-
-    return {
-      ...item,
-      displayName: headerNama || "Tanpa Nama",
-      namaPetugasLabel: keteranganNama || headerNama || "-",
-      pekerjaanLabel: pekerjaan || "-",
-      jenisPekerjaanLabel: jenisPekerjaan || "-",
-      lokasiLabel: lokasi || "-",
-      waktuLabel: waktuLabel || "-",
-      fotoCount,
-    };
-  };
 
   const load = async () => {
     setLoading(true);
@@ -307,20 +90,16 @@ export default function StageReportListClient({ stage }: { stage: number }) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = items.map(enrichItem);
+    let list = items.map((i) => {
+      const firstTwo = Array.isArray(i.answers)
+        ? i.answers.filter((a) => a.type !== "photo").map((a) => String(a.value || "")).filter(Boolean).slice(0, 2)
+        : [] as string[];
+      const title = i.pekerjaan || firstTwo[0] || "-";
+      const subtitle = i.lokasi || firstTwo[1] || "-";
+      return { ...i, _title: title, _subtitle: subtitle } as any;
+    });
     if (q) {
-      list = list.filter((item) =>
-        [
-          item.displayName,
-          item.namaPetugasLabel,
-          item.pekerjaanLabel,
-          item.jenisPekerjaanLabel,
-          item.lokasiLabel,
-          item.alamat || "",
-        ]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(q))
-      );
+      list = list.filter((i: any) => [i._title, i._subtitle, i.alamat || ""].some((v: any) => String(v || "").toLowerCase().includes(q)));
     }
     list = [...list].sort((a, b) => (asc ? a.createdAt - b.createdAt : b.createdAt - a.createdAt));
     return list;
@@ -368,82 +147,6 @@ export default function StageReportListClient({ stage }: { stage: number }) {
     setItemToDelete(null);
   };
 
-  const handleExportExcel = () => {
-    const exportData = filtered;
-    if (!exportData.length) {
-      alert("Tidak ada data untuk diexport.");
-      return;
-    }
-
-    const rows: string[] = [];
-    rows.push(`<table border="1" style="border-collapse:collapse;">`);
-    rows.push(`<tr><th colspan="2" style="font-size:16px;background:#EEF2FF;">Laporan Tahap ${stage}</th></tr>`);
-    rows.push(`<tr><th style="background:#F4F4F5;">Sub Judul</th><th style="background:#F4F4F5;">Isi</th></tr>`);
-
-    exportData.forEach((item, index) => {
-      const addRow = (title: string, value: string) => {
-        rows.push(`<tr><td>${title}</td><td>${value || "-"}</td></tr>`);
-      };
-
-      rows.push(
-        `<tr><td colspan="2" style="font-weight:bold;background:#E0F2FE;">No. ${index + 1} - ${item.displayName || "Tanpa Nama"}</td></tr>`
-      );
-
-      addRow("Nama Petugas", item.displayName || "-");
-      addRow("Keterangan Nama Pekerja", item.namaPetugasLabel || "-");
-      addRow("Tanggal Laporan", item.tanggal || "-");
-      addRow("Waktu Laporan", item.jam || "-");
-      addRow("Lokasi Proyek", item.lokasiLabel || item.alamat || "-");
-      addRow(
-        "Koordinat GPS",
-        item.latitude && item.longitude
-          ? `Lat: ${item.latitude} | Lon: ${item.longitude}${item.accuracy ? ` (&plusmn;${Math.round(item.accuracy)}m)` : ""}`
-          : "-"
-      );
-      addRow("Pekerjaan", item.pekerjaanLabel || "-");
-      addRow("Jenis Pekerjaan", item.jenisPekerjaanLabel || "-");
-
-      if (Array.isArray(item.answers)) {
-        item.answers.forEach((answer: any) => {
-          if (!answer || typeof answer.label !== "string") return;
-          const label = answer.label;
-          const type = String(answer.type || "").toLowerCase();
-          if (type === "photo") {
-            const url = typeof answer.value === "string" ? answer.value : "";
-            addRow(label, url ? `<a href="${url}">${url}</a>` : "-");
-          } else {
-            const value = answer.value == null ? "" : String(answer.value);
-            addRow(label, value);
-          }
-        });
-      }
-
-      if (item.fotoWajibName || item.fotoOpsionalName) {
-        addRow(
-          "Nama File Foto",
-          [item.fotoWajibName, item.fotoOpsionalName].filter(Boolean).join(", ") || "-"
-        );
-      }
-
-      rows.push(`<tr><td colspan="2" style="height:12px;background:#FFFFFF;"></td></tr>`);
-    });
-
-    rows.push(`</table>`);
-
-    const tableHtml = `\uFEFF${rows.join("")}`;
-    const blob = new Blob([tableHtml], {
-      type: "application/vnd.ms-excel;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `laporan-tahap-${stage}-${new Date().toISOString().slice(0, 10)}.xls`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="space-y-4">
       {/* Title */}
@@ -474,144 +177,64 @@ export default function StageReportListClient({ stage }: { stage: number }) {
             <path d="M7 10l5 5 5-5H7z" />
           </svg>
         </button>
-        <button
-          type="button"
-          onClick={handleExportExcel}
-          className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 px-3 py-2 text-xs sm:text-sm shadow-sm hover:bg-blue-100 whitespace-nowrap"
-        >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-            <path d="M5 20h14v-2H5v2zm7-18L5.33 9h3.84v4h6.66V9h3.84L12 2z" />
-          </svg>
-          Export Excel
-        </button>
       </div>
 
       {/* List */}
-      <ul className="space-y-4">
-        {filtered.map((item) => (
-          <li
-            key={item.id}
-            className="rounded-3xl border border-neutral-200 bg-white shadow-sm hover:shadow-lg transition-all duration-200"
-          >
-            <div className="p-4 sm:p-6 flex flex-col gap-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 shadow-inner">
-                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
-                      <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
-                    </svg>
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-base font-semibold text-neutral-900 leading-tight">
-                      {item.displayName || "Tanpa Nama"}
-                    </div>
-                    <div className="text-xs text-neutral-500 mt-1">
-                      {item.lokasiLabel || "-"}
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {item.fotoCount > 0 && (
-                        <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-600 px-3 py-1 text-xs font-medium ring-1 ring-blue-100">
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-                            <path d="M21 5a2 2 0 00-2-2h-3.172a2 2 0 01-1.414-.586l-.828-.828A2 2 0 0012.172 1h-2.344a2 2 0 00-1.414.586l-.828.828A2 2 0 006.172 3H3a2 2 0 00-2 2v13a2 2 0 002 2h16a2 2 0 002-2V5zM8 5a1 1 0 011-1h6a1 1 0 011 1v1H8V5zm7 7a3 3 0 11-3-3 3 3 0 013 3z" />
-                          </svg>
-                          {item.fotoCount} Foto
-                        </span>
-                      )}
-                      <span className="inline-flex items-center gap-2 rounded-full bg-purple-50 text-purple-600 px-3 py-1 text-xs font-medium ring-1 ring-purple-100">
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-                          <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {item.waktuLabel || "-"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
+      <ul className="space-y-3">
+        {filtered.map((i) => (
+          <li key={i.id} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
+            <div className="px-3 py-2.5 flex items-start gap-3">
+              <div className="shrink-0">
+                <span className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 text-xs">Foto</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">{(i as any)._title || "-"}</div>
+                <div className="text-xs text-neutral-500 truncate">{(i as any)._subtitle || "-"}</div>
+              </div>
+              <div className="text-right min-w-[150px]">
+                <div className="text-[11px] text-neutral-500 whitespace-nowrap">{i.tanggal}</div>
+                <div className="mt-1 flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => setSelected(item)}
-                    className="inline-flex items-center gap-2 rounded-full border border-neutral-300 px-4 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+                    onClick={() => setSelected(i)}
+                    className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M12 5c-7.633 0-11 6.5-11 7s3.367 7 11 7 11-6.5 11-7-3.367-7-11-7zm0 12a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 103 3 3 3 0 00-3-3z" />
-                    </svg>
                     Detail
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setEditItem(item);
-                      populateEditFields(item);
+                      setEditItem(i);
+
+                      // Initialize basic fields
+                      setEditNama(i.nama || "");
+                      setEditLokasi(i.lokasi || "");
+                      setEditPekerjaan(i.pekerjaan || "");
+                      setEditFotoName(i.fotoWajibName || i.fotoOpsionalName || "");
+                      setEditTanggal(i.tanggal || "");
+
+                      // For dynamic answers, pre-populate any text fields
+                      if (Array.isArray(i.answers)) {
+                        const namaField = i.answers.find((a: any) => a.label.toLowerCase().includes('nama') && a.type === 'text');
+                        const lokasiField = i.answers.find((a: any) => a.label.toLowerCase().includes('lokasi') && a.type === 'text');
+                        const pekerjaanField = i.answers.find((a: any) => a.label.toLowerCase().includes('pekerjaan') || a.label.toLowerCase().includes('kegiatan') && a.type === 'text');
+
+                        if (namaField) setEditNama(String(namaField.value || ""));
+                        if (lokasiField) setEditLokasi(String(lokasiField.value || ""));
+                        if (pekerjaanField) setEditPekerjaan(String(pekerjaanField.value || ""));
+                      }
                     }}
-                    className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+                    className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-                    </svg>
                     Edit
                   </button>
                   <button
                     type="button"
-                    onClick={() => showDeleteAlert(item)}
-                    className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-medium text-white hover:bg-red-600 transition-colors"
+                    onClick={() => showDeleteAlert(i)}
+                    className="inline-flex items-center justify-center h-7 px-3 rounded-full bg-red-500 text-white hover:bg-red-600 text-xs"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
                     Hapus
                   </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-slate-50 px-4 py-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-200 text-slate-700">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
-                    </svg>
-                  </span>
-                  <div>
-                    <div className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Keterangan Nama Pekerja</div>
-                    <div className="text-sm font-semibold text-neutral-900">{item.namaPetugasLabel || "-"}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                    </svg>
-                  </span>
-                  <div>
-                    <div className="text-xs font-medium text-blue-600 uppercase tracking-wide">Pekerjaan</div>
-                    <div className="text-sm font-semibold text-blue-700">{item.pekerjaanLabel || "-"}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </span>
-                  <div>
-                    <div className="text-xs font-medium text-indigo-600 uppercase tracking-wide">Jenis Pekerjaan</div>
-                    <div className="text-sm font-semibold text-indigo-700">{item.jenisPekerjaanLabel || "-"}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </span>
-                  <div>
-                    <div className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Lokasi</div>
-                    <div className="text-sm font-semibold text-emerald-700">{item.lokasiLabel || "-"}</div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -634,15 +257,7 @@ export default function StageReportListClient({ stage }: { stage: number }) {
           />
 
           {/* Modal Card */}
-          <div
-            ref={detailModalRef}
-            role="dialog"
-            aria-modal="true"
-            tabIndex={-1}
-            className="relative w-full max-w-5xl max-h-[92vh] overflow-hidden transform-gpu"
-            onClick={(e) => e.stopPropagation()}
-            style={{animation: 'modal-slide-in 0.6s cubic-bezier(0.4, 0, 0.2, 1)'}}
-          >
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden transform-gpu" onClick={(e) => e.stopPropagation()} style={{animation: 'modal-slide-in 0.6s cubic-bezier(0.4, 0, 0.2, 1)'}}>
             <div className="bg-white rounded-3xl shadow-2xl ring-1 ring-neutral-200 overflow-hidden transform-gpu">
 
               {/* Header with gradient background */}
@@ -664,10 +279,13 @@ export default function StageReportListClient({ stage }: { stage: number }) {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => {
-                        if (!selected) return;
-                        populateEditFields(selected);
                         setEditItem(selected);
                         setSelected(null);
+                        setEditNama(selected.nama || "");
+                        setEditLokasi(selected.lokasi || "");
+                        setEditPekerjaan(selected.pekerjaan || "");
+                        setEditFotoName(selected.fotoWajibName || selected.fotoOpsionalName || "");
+                        setEditTanggal(selected.tanggal || "");
                       }}
                       className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-all duration-200"
                     >
@@ -691,7 +309,7 @@ export default function StageReportListClient({ stage }: { stage: number }) {
               </div>
 
               {/* Content */}
-              <div className="max-h-[72vh] overflow-y-auto px-8 py-6">
+              <div className="max-h-[60vh] overflow-y-auto px-8 py-6">
 
                 {/* Status & Meta Info */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -986,15 +604,7 @@ export default function StageReportListClient({ stage }: { stage: number }) {
           />
 
           {/* Modal Card */}
-          <div
-            ref={editModalRef}
-            role="dialog"
-            aria-modal="true"
-            tabIndex={-1}
-            className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden transform-gpu"
-            onClick={(e) => e.stopPropagation()}
-            style={{animation: 'modal-slide-in 0.5s cubic-bezier(0.4, 0, 0.2, 1)'}}
-          >
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden transform-gpu" onClick={(e) => e.stopPropagation()} style={{animation: 'modal-slide-in 0.5s cubic-bezier(0.4, 0, 0.2, 1)'}}>
             <div className="bg-white rounded-3xl shadow-2xl ring-1 ring-neutral-200 overflow-hidden transform-gpu">
 
               {/* Header */}
@@ -1026,7 +636,7 @@ export default function StageReportListClient({ stage }: { stage: number }) {
               </div>
 
               {/* Content */}
-              <div className="max-h-[78vh] overflow-y-auto px-6 py-6">
+              <div className="max-h-[65vh] overflow-y-auto px-6 py-6">
                 <form
                   className="space-y-6"
                   onSubmit={async (e) => {
@@ -1157,12 +767,8 @@ export default function StageReportListClient({ stage }: { stage: number }) {
                       </label>
                       <input
                         type="date"
-                        value={editTanggalIso}
-                        onChange={(e) => {
-                          const iso = e.target.value;
-                          setEditTanggalIso(iso);
-                          setEditTanggal(iso ? formatISOToDisplay(iso) : "");
-                        }}
+                        value={editTanggal}
+                        onChange={(e) => setEditTanggal(e.target.value)}
                         className="w-full rounded-xl border-0 ring-1 ring-gray-300 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all duration-200"
                       />
                     </div>

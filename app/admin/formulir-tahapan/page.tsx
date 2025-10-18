@@ -49,6 +49,7 @@ export default function FormulirTahapan() {
             <nav className="p-3 grid gap-2 text-sm">
               <Link href="/admin/dashboard" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Home</Link>
               <Link href="/admin/laporan-progres" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Laporan Progres</Link>
+              <Link href="/admin/rekap-progress" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Rekap Ulang Progress</Link>
               <Link href="/admin/manajemen-pengguna" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Manajemen Pengguna</Link>
               <Link href="/admin/formulir-tahapan" className="rounded-lg bg-red-600 text-white px-3 py-2">Kelola Formulir & Tahapan</Link>
             </nav>

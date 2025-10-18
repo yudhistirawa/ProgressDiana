@@ -26,3 +26,40 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Smooth micro-animations for list entrance and loading bar */
+@keyframes list-fade-in {
+  0% { opacity: 0; transform: translateY(6px) scale(0.995); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-list-in {
+  animation: list-fade-in 260ms cubic-bezier(0.2, 0, 0.2, 1) both;
+}
+
+@keyframes loading-bar {
+  0% { transform: translateX(-40%); }
+  100% { transform: translateX(140%); }
+}
+
+.loading-bar-track {
+  position: sticky;
+  top: 0;
+  height: 2px;
+  width: 100%;
+  background: transparent;
+  z-index: 40;
+}
+
+.loading-bar-indicator {
+  height: 100%;
+  width: 30%;
+  background: linear-gradient(90deg, #ef4444, #f59e0b);
+  border-radius: 9999px;
+  animation: loading-bar 1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-list-in { animation: none; }
+  .loading-bar-indicator { animation: none; }
+}

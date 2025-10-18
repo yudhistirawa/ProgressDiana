@@ -18,10 +18,11 @@ export default function PageTransition({ children }: PageTransitionProps) {
 
     const timer = setTimeout(() => {
       setTransitionPhase('fade-in');
-      setTimeout(() => {
+      const t2 = setTimeout(() => {
         setTransitionPhase('idle');
-      }, 500);
-    }, 150);
+      }, 320);
+      return () => clearTimeout(t2);
+    }, 120);
 
     return () => clearTimeout(timer);
   }, [pathname, searchParams]);
@@ -33,14 +34,12 @@ export default function PageTransition({ children }: PageTransitionProps) {
 
   return (
     <div
-      className={`transition-all duration-[400ms] ease-out ${
+      className={`transform-gpu transition-all duration-300 ease-out ${
         transitionPhase === 'fade-out'
-          ? 'opacity-0 scale-[0.995] translate-y-1'
+          ? 'opacity-0 scale-[0.997] translate-y-[2px]'
           : 'opacity-100 scale-100 translate-y-0'
       }`}
-      style={{
-        willChange: 'transform, opacity',
-      }}
+      style={{ willChange: 'transform, opacity' }}
     >
       {children}
     </div>

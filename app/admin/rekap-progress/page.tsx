@@ -1,13 +1,13 @@
 import Link from "next/link";
 import AvatarMenuClient from "../components/AvatarMenuClient";
-import ProgressGridClient from "./ProgressGridClient";
+import RekapProgressClient from "./RekapProgressClient";
 
 export const metadata = {
-  title: "Laporan Progres - Admin",
-  description: "Pilih tahap progres untuk dikelola",
+  title: "Rekap Ulang Progress - Admin",
+  description: "Ringkasan dan rekapitulasi data progress proyek",
 };
 
-export default function AdminLaporanProgres() {
+export default function AdminRekapProgress() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       {/* Decorative background */}
@@ -33,7 +33,7 @@ export default function AdminLaporanProgres() {
                 <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />
               </svg>
             </Link>
-            <div className="text-sm sm:text-base font-semibold tracking-wide">Laporan Progres</div>
+            <div className="text-sm sm:text-base font-semibold tracking-wide">Rekap Ulang Progress</div>
           </div>
           <div className="col-span-12 sm:col-span-6" />
           <div className="col-span-12 sm:col-span-3 flex items-center justify-end gap-2">
@@ -51,11 +51,11 @@ export default function AdminLaporanProgres() {
         {/* Sidebar */}
         <aside className="col-span-12 sm:col-span-3 lg:col-span-3">
           <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-4 py-2 border-b border-neutral-200 text-sm font-semibold">Laporan Progres</div>
+            <div className="px-4 py-2 border-b border-neutral-200 text-sm font-semibold">Rekap Progress</div>
             <nav className="p-3 grid gap-2 text-sm">
               <Link href="/admin/dashboard" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Home</Link>
-              <Link href="/admin/laporan-progres" className="rounded-lg bg-red-600 text-white px-3 py-2">Laporan Progres</Link>
-              <Link href="/admin/rekap-progress" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Rekap Ulang Progress</Link>
+              <Link href="/admin/laporan-progres" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Laporan Progres</Link>
+              <Link href="/admin/rekap-progress" className="rounded-lg bg-red-600 text-white px-3 py-2">Rekap Ulang Progress</Link>
               <Link href="/admin/manajemen-pengguna" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Manajemen Pengguna</Link>
               <Link href="/admin/formulir-tahapan" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Kelola Formulir & Tahapan</Link>
             </nav>
@@ -64,7 +64,7 @@ export default function AdminLaporanProgres() {
 
         {/* Content */}
         <main className="col-span-12 sm:col-span-9">
-          <ProgressGridClient />
+          <RekapProgressClient />
         </main>
       </div>
     </div>

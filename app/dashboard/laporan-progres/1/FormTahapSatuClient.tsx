@@ -1,9 +1,187 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { getFirebaseClient } from "../../../../lib/firebaseClient";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp } from "firebase/firestore";
+import dynamic from 'next/dynamic';
+
+// Lazy load the ProgressTable component to avoid SSR issues with Firebase
+const ProgressTable = dynamic(
+  () => import('../../../../components/ProgressTable'),
+  { ssr: false, loading: () => <div className="text-center py-4">Memuat data progress...</div> }
+);
 
 type FieldSpec = { id: number; label: string; type: "text" | "photo" };
+
+async function addGeotagToImage(file: File, lat: number, lon: number, accuracy?: number, userInfo?: { name?: string; email?: string; uid?: string }): Promise<File> {
+  try {
+    // For mobile devices with camera, try to add GPS metadata
+    if ('ImageCapture' in window || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+      console.log('📍 Adding comprehensive geotag to image:', { lat, lon, accuracy, userInfo, fileName: file.name });
+
+      try {
+        // Get device information
+        const deviceInfo = getDeviceInfo();
+        const timestamp = new Date();
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+        // Create a canvas with the image and comprehensive overlay
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = await createImageFromFile(file);
+
+        if (ctx && img) {
+          canvas.width = img.width;
+          canvas.height = img.height;
+
+          // Draw the original image
+          ctx.drawImage(img, 0, 0);
+
+          // Create semi-transparent overlay background
+          const overlayHeight = 140;
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+          ctx.fillRect(10, canvas.height - overlayHeight - 10, Math.min(400, canvas.width - 20), overlayHeight);
+
+          // Set text properties
+          ctx.fillStyle = 'white';
+          ctx.textAlign = 'left';
+
+          // Title
+          ctx.font = 'bold 14px Arial';
+          ctx.fillText('📍 GEOSTAMP INFO', 20, canvas.height - overlayHeight + 20);
+
+          // Content
+          ctx.font = '11px Arial';
+          let yPos = canvas.height - overlayHeight + 40;
+
+          // Date & Time with Timezone
+          const localDateTime = timestamp.toLocaleString('id-ID', {
+            timeZone: timezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          });
+          ctx.fillText(`⏰ ${localDateTime} (${timezone})`, 20, yPos);
+          yPos += 18;
+
+          // GPS Coordinates (WGS84)
+          ctx.fillText(`📍 ${lat.toFixed(8)}, ${lon.toFixed(8)} (WGS84)`, 20, yPos);
+          yPos += 18;
+
+          // Accuracy
+          if (accuracy) {
+            ctx.fillText(`🎯 Akurasi: ±${Math.round(accuracy)}m`, 20, yPos);
+            yPos += 18;
+          }
+
+          // User Information
+          if (userInfo?.name || userInfo?.email) {
+            const userText = userInfo.name ? `👤 ${userInfo.name}` : `👤 ${userInfo.email}`;
+            ctx.fillText(userText, 20, yPos);
+            yPos += 18;
+          }
+
+          // Device Information
+          ctx.fillText(`📱 ${deviceInfo.model} (${deviceInfo.os})`, 20, yPos);
+          yPos += 18;
+
+          // Convert canvas to blob
+          const geotaggedBlob = await new Promise<Blob | null>((resolve) => {
+            canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
+          });
+
+          if (geotaggedBlob) {
+            const geotaggedFile = new File([geotaggedBlob], `geotagged_${file.name}`, {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+
+            console.log('✅ Comprehensive geotagged image created successfully');
+            console.log('📋 Geostamp data:', {
+              timestamp: localDateTime,
+              coordinates: `${lat.toFixed(8)}, ${lon.toFixed(8)}`,
+              accuracy: accuracy ? `±${Math.round(accuracy)}m` : 'N/A',
+              user: userInfo,
+              device: deviceInfo
+            });
+
+            return geotaggedFile;
+          }
+        }
+      } catch (canvasError) {
+        console.warn('⚠️ Could not create comprehensive geotagged canvas:', canvasError);
+      }
+
+      // If canvas approach fails, try to use the original file
+      // Modern mobile browsers should automatically geotag when using capture="environment"
+      console.log('📱 Using original file - mobile browser should handle geotagging automatically');
+    }
+
+    return file;
+  } catch (error) {
+    console.warn('⚠️ Geotagging failed:', error);
+    return file;
+  }
+}
+
+// Helper function to get device information
+function getDeviceInfo() {
+  const userAgent = navigator.userAgent;
+  let os = 'Unknown';
+  let model = 'Unknown Device';
+
+  // Detect OS
+  if (/Windows NT/i.test(userAgent)) {
+    os = 'Windows';
+    if (/Windows NT 10/i.test(userAgent)) os = 'Windows 10/11';
+  } else if (/Android/i.test(userAgent)) {
+    os = 'Android';
+    const match = userAgent.match(/Android (\d+\.\d+)/);
+    os = match ? `Android ${match[1]}` : 'Android';
+  } else if (/iPhone|iPad|iPod/i.test(userAgent)) {
+    os = 'iOS';
+    const match = userAgent.match(/OS (\d+_\d+)/);
+    if (match) {
+      const version = match[1].replace('_', '.');
+      os = `iOS ${version}`;
+    }
+  } else if (/Mac OS X/i.test(userAgent)) {
+    os = 'macOS';
+    const match = userAgent.match(/Mac OS X (\d+_\d+)/);
+    if (match) {
+      const version = match[1].replace('_', '.');
+      os = `macOS ${version}`;
+    }
+  } else if (/Linux/i.test(userAgent)) {
+    os = 'Linux';
+  }
+
+  // Try to get device model (limited support)
+  if (/iPhone/i.test(userAgent)) {
+    const match = userAgent.match(/iPhone(\d+),?(\d+)?/);
+    model = match ? `iPhone ${match[1]}${match[2] ? ` (${match[2]})` : ''}` : 'iPhone';
+  } else if (/iPad/i.test(userAgent)) {
+    model = 'iPad';
+  } else if (/Android/i.test(userAgent)) {
+    // Try to extract Android device model
+    const match = userAgent.match(/;\s([^;]+)\sBuild/);
+    model = match ? match[1].trim() : 'Android Device';
+  }
+
+  return { os, model };
+}
+
+// Helper function to create image element from file
+function createImageFromFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 async function fileToWebp(file: File, quality = 0.85): Promise<File> {
   try {
@@ -94,12 +272,29 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
   const [fileOpsionalPreview, setFileOpsionalPreview] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [dateStr, setDateStr] = useState<string>("");
+  const [dateISO, setDateISO] = useState<string>("");
   const [timeStr, setTimeStr] = useState<string>("");
   const [gpsStatus, setGpsStatus] = useState<"init" | "tracking" | "denied" | "unsupported" | "error">("init");
   const [gps, setGps] = useState<{ lat?: number; lon?: number; accuracy?: number; updated?: number }>({});
   const [address, setAddress] = useState<string>("");
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeErr, setGeocodeErr] = useState<string | null>(null);
+  const [autoTimestamp, setAutoTimestamp] = useState(true);
+  
+  // State untuk menyimpan data progress
+  const [progressData, setProgressData] = useState<Array<{
+    id: string;
+    nama?: string;
+    lokasi?: string;
+    pekerjaan?: string;
+    keterangan?: string;
+    status?: string;
+    tanggal?: string;
+    jam?: string;
+    createdAt?: Timestamp;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const inputFileWajibRef = useRef<HTMLInputElement>(null);
   const inputFileOpsionalRef = useRef<HTMLInputElement>(null);
@@ -114,10 +309,13 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
   const dynInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [uploadPerc, setUploadPerc] = useState<number[]>([]);
   const [uploadErr, setUploadErr] = useState<(string | null)[]>([]);
+  const [photoSource, setPhotoSource] = useState<Record<number, 'camera' | 'gallery'>>({});
 
   // Initialize clock from device time and keep ticking
   useEffect(() => {
+    if (!autoTimestamp) return;
     const setFrom = (d: Date) => {
+      setDateISO(d.toISOString().slice(0, 10));
       setDateStr(d.toLocaleDateString("id-ID"));
       setTimeStr(
         d.toLocaleTimeString("id-ID", { hour12: false })
@@ -126,7 +324,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
     setFrom(new Date());
     const t = setInterval(() => setFrom(new Date()), 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [autoTimestamp]);
 
   // Load schema per stage
   useEffect(() => {
@@ -187,6 +385,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
         const { latitude, longitude, accuracy } = pos.coords;
         setGps({ lat: latitude, lon: longitude, accuracy, updated: pos.timestamp });
         const gpsTime = new Date(pos.timestamp || Date.now());
+        setDateISO(gpsTime.toISOString().slice(0, 10));
         setDateStr(gpsTime.toLocaleDateString("id-ID"));
         setTimeStr(gpsTime.toLocaleTimeString("id-ID", { hour12: false }));
       },
@@ -251,7 +450,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
   return (
     <div className="mx-auto max-w-md sm:max-w-lg rounded-3xl ring-1 ring-neutral-200 bg-white/95 shadow-xl backdrop-blur p-4 sm:p-6">
       <div className="text-center mb-4">
-        <div className="text-sm sm:text-base font-semibold">Lengkapi Formulir Dibawah ini</div>
+        <div className="text-sm sm:text-base font-semibold">Upload Foto Progress</div>
       </div>
 
       <form
@@ -259,6 +458,14 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
         onSubmit={async (e) => {
           e.preventDefault();
           if (isSubmitting) return;
+
+          // Validate that at least one photo is selected
+          const hasPhoto = dynPhotoFiles.some(file => file !== null);
+          if (!hasPhoto) {
+            alert("Silakan pilih minimal satu foto untuk diupload");
+            return;
+          }
+
           setIsSubmitting(true);
           // Kumpulkan data dan gunakan file hasil konversi WEBP
           const formEl = e.currentTarget as HTMLFormElement;
@@ -357,6 +564,9 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                 const col = collection(fb.db, "Progress_Diana");
                 await setDoc(doc(col, recId), {
                   ...data,
+                  // Gunakan timestamp server agar urutan konsisten di query
+                  createdAt: serverTimestamp(),
+                  uploadedAt: serverTimestamp(),
                   ts: serverTimestamp(),
                 });
 
@@ -413,7 +623,12 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
               projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? "✅ Set" : "❌ Missing",
               storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? "✅ Set" : "❌ Missing"
             });
-            alert("✅ Data laporan berhasil dikirim ke Firestore!");
+
+            // Show success alert and redirect to progress report
+            alert("✅ Data laporan berhasil dikirim ke admin!\n\nAnda akan diarahkan kembali ke halaman laporan progress.");
+
+            // Redirect back to progress report page
+            window.location.href = "/dashboard/laporan-progres";
           }, 300);
         }}
       >
@@ -434,13 +649,121 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
               />
             ) : (
               <>
+                {/* Photo source selection buttons only */}
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoSource(prev => ({ ...prev, [i]: 'camera' }));
+                      // Small delay to ensure state is updated before clicking
+                      setTimeout(() => {
+                        const cameraInput = document.getElementById(`camera_${i}`) as HTMLInputElement;
+                        cameraInput?.click();
+                      }, 100);
+                    }}
+                    className={`flex-1 text-xs px-3 py-2 rounded-xl border transition-colors ${
+                      photoSource[i] === 'camera' || !photoSource[i]
+                        ? 'bg-red-500 text-white border-red-500'
+                        : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'
+                    }`}
+                  >
+                    📷 Kamera
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoSource(prev => ({ ...prev, [i]: 'gallery' }));
+                      // Small delay to ensure state is updated before clicking
+                      setTimeout(() => {
+                        const galleryInput = document.getElementById(`gallery_${i}`) as HTMLInputElement;
+                        galleryInput?.click();
+                      }, 100);
+                    }}
+                    className={`flex-1 text-xs px-3 py-2 rounded-xl border transition-colors ${
+                      photoSource[i] === 'gallery'
+                        ? 'bg-red-500 text-white border-red-500'
+                        : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'
+                    }`}
+                  >
+                    🖼️ Galeri
+                  </button>
+                </div>
+
+                {/* Hidden camera input */}
                 <input
-                  ref={(el) => { dynInputRefs.current[i] = el; }}
-                  id={`f_${i}`}
-                  name={`f_${i}`}
+                  id={`camera_${i}`}
                   type="file"
                   accept="image/*"
                   capture="environment"
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const f0 = e.target.files?.[0];
+                    if (!f0) return;
+
+                    console.log('📸 Camera photo taken, adding geotag...');
+
+                    setDynPhotoNames((arr) => {
+                      const next = [...arr];
+                      next[i] = "Menambahkan geotag...";
+                      return next;
+                    });
+
+                    // Add geotag to the image if GPS is available
+                    let geotaggedFile = f0;
+                    if (gps.lat && gps.lon) {
+                      try {
+                        // Get current user information for geotagging
+                        let userInfo: { name?: string; email?: string; uid?: string } | undefined;
+                        try {
+                          const { getAuth } = await import("firebase/auth");
+                          const auth = getAuth();
+                          if (auth.currentUser) {
+                            userInfo = {
+                              name: auth.currentUser.displayName ?? undefined,
+                              email: auth.currentUser.email ?? undefined,
+                              uid: auth.currentUser.uid
+                            };
+                          }
+                        } catch (authError) {
+                          console.warn('⚠️ Could not get user info for geotagging:', authError);
+                        }
+
+                        geotaggedFile = await addGeotagToImage(f0, gps.lat, gps.lon, gps.accuracy, userInfo);
+                        console.log('✅ Comprehensive geotag added successfully');
+                      } catch (geotagError) {
+                        console.warn('⚠️ Geotagging failed, using original file:', geotagError);
+                        geotaggedFile = f0;
+                      }
+                    } else {
+                      console.warn('⚠️ No GPS data available for geotagging');
+                    }
+
+                    const webp = await fileToWebp(geotaggedFile, 0.85);
+                    setDynPhotoFiles((arr) => {
+                      const next = [...arr];
+                      next[i] = webp;
+                      return next;
+                    });
+                    setDynPhotoNames((arr) => {
+                      const next = [...arr];
+                      next[i] = `${webp.name} (${formatBytes(webp.size)})`;
+                      return next;
+                    });
+                    setDynPhotoPreviews((arr) => {
+                      const next = [...arr];
+                      const prev = next[i];
+                      if (prev) URL.revokeObjectURL(prev as any);
+                      next[i] = URL.createObjectURL(webp);
+                      return next;
+                    });
+                  }}
+                />
+
+                {/* Hidden gallery input */}
+                <input
+                  id={`gallery_${i}`}
+                  type="file"
+                  accept="image/*"
                   className="sr-only"
                   onChange={async (e) => {
                     const f0 = e.target.files?.[0];
@@ -469,18 +792,9 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                       return next;
                     });
                   }}
-                  required
                 />
-                <div className="relative">
-                  <input
-                    type="text"
-                    readOnly
-                    onClick={() => dynInputRefs.current[i]?.click()}
-                    placeholder="Masukkan Foto (klik untuk ambil)"
-                    value={dynPhotoNames[i] || ""}
-                    className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-4 py-2.5 text-sm shadow-inner placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-300 cursor-pointer"
-                  />
-                </div>
+
+                {/* Preview and controls - shown only when photo is selected */}
                 {dynPhotoPreviews[i] && (
                   <div className="mt-2">
                     <div className="inline-flex items-center gap-3">
@@ -494,7 +808,12 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => dynInputRefs.current[i]?.click()}
+                        onClick={() => {
+                          const source = photoSource[i] || 'camera';
+                          const inputId = `${source}_${i}`;
+                          const input = document.getElementById(inputId) as HTMLInputElement;
+                          input?.click();
+                        }}
                         className="text-xs px-3 py-1.5 rounded-full border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700"
                       >
                         Ganti Foto
@@ -700,25 +1019,69 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
         {/* Waktu (realtime, tidak bisa diubah) */}
         <div className="space-y-3">
           <div className="space-y-1">
-            <label className="block text-xs font-medium text-neutral-700">Tanggal</label>
-            <input
-              type="text"
-              value={dateStr}
-              readOnly
-              disabled
-              className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm shadow-inner text-neutral-700"
-            />
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-xs font-medium text-neutral-700">Tanggal</label>
+              <button
+                type="button"
+                onClick={() =>
+                  setAutoTimestamp((prev) => {
+                    const next = !prev;
+                    if (next) {
+                      const now = new Date();
+                      setDateISO(now.toISOString().slice(0, 10));
+                      setDateStr(now.toLocaleDateString("id-ID"));
+                    }
+                    return next;
+                  })
+                }
+                className="text-[11px] font-medium text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline"
+              >
+                {autoTimestamp ? "Ubah manual" : "Gunakan otomatis"}
+              </button>
+            </div>
+            {autoTimestamp ? (
+              <input
+                type="text"
+                value={dateStr}
+                readOnly
+                className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm shadow-inner text-neutral-700"
+                placeholder="cth: 18/10/2025"
+              />
+            ) : (
+              <input
+                type="date"
+                value={dateISO}
+                onChange={(e) => {
+                  const iso = e.target.value;
+                  setDateISO(iso);
+                  if (iso) {
+                    const local = new Date(`${iso}T00:00:00`).toLocaleDateString("id-ID");
+                    setDateStr(local);
+                  } else {
+                    setDateStr("");
+                  }
+                }}
+                className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-4 py-2.5 text-sm shadow-inner text-neutral-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+              />
+            )}
             <input type="hidden" name="tanggal" value={dateStr} />
-            <p className="text-[11px] text-neutral-500">Data tanggal realtime</p>
+            <p className="text-[11px] text-neutral-500">
+              {autoTimestamp
+                ? "Data tanggal mengikuti waktu realtime perangkat."
+                : "Anda mengatur tanggal secara manual. Pastikan format benar."}
+            </p>
           </div>
           <div className="space-y-1">
             <label className="block text-xs font-medium text-neutral-700">Jam</label>
             <input
               type="text"
               value={timeStr}
-              readOnly
-              disabled
-              className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm shadow-inner text-neutral-700"
+              onChange={(e) => setTimeStr(e.target.value)}
+              readOnly={autoTimestamp}
+              className={`w-full rounded-2xl border-0 ring-1 ring-neutral-300 px-4 py-2.5 text-sm shadow-inner text-neutral-700 transition-colors ${
+                autoTimestamp ? "bg-neutral-50" : "bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
+              }`}
+              placeholder="cth: 14.35.00"
             />
             <input type="hidden" name="jam" value={timeStr} />
           </div>
