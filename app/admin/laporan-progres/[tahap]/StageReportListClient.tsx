@@ -44,6 +44,8 @@ export default function StageReportListClient({ stage }: { stage: number }) {
   const [items, setItems] = useState<Item[]>([]);
   const [query, setQuery] = useState("");
   const [asc, setAsc] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
   const [selected, setSelected] = useState<Item | null>(null);
   const [editItem, setEditItem] = useState<Item | null>(null);
   const [editNama, setEditNama] = useState("");
@@ -326,6 +328,21 @@ export default function StageReportListClient({ stage }: { stage: number }) {
     return list;
   }, [items, query, asc]);
 
+  // Reset/clamp page when data or filters change
+  useEffect(() => {
+    setPage(1);
+  }, [query, asc, stage]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if (page > totalPages) setPage(totalPages);
+  }, [filtered.length]);
+
+  const paginated = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page]);
+
   const showDeleteAlert = (item: Item) => {
     setItemToDelete(item);
     setDeleteAlert({
@@ -488,7 +505,7 @@ export default function StageReportListClient({ stage }: { stage: number }) {
 
       {/* List */}
       <ul className="space-y-4">
-        {filtered.map((item) => (
+        {paginated.map((item) => (
           <li
             key={item.id}
             className="rounded-3xl border border-neutral-200 bg-white shadow-sm hover:shadow-lg transition-all duration-200"
@@ -623,6 +640,84 @@ export default function StageReportListClient({ stage }: { stage: number }) {
         <div className="text-center text-sm text-neutral-500 py-10">Belum ada laporan dari petugas untuk tahap ini.</div>
       )}
 
+      {/* Pagination */}
+      {filtered.length > pageSize && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+          <div className="text-neutral-600">
+            Menampilkan {(page - 1) * pageSize + 1}
+            {"–"}
+            {Math.min(page * pageSize, filtered.length)} dari {filtered.length}
+          </div>
+          <div className="flex items-center gap-1">
+            {(() => {
+              const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+              const buttons: JSX.Element[] = [];
+              const go = (p: number) => () => setPage(p);
+
+              // Prev
+              buttons.push(
+                <button
+                  key="prev"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-md border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+                >
+                  Prev
+                </button>
+              );
+
+              // Page numbers (windowed)
+              const pageWindow = 2; // show current +/- 2
+              const start = Math.max(1, page - pageWindow);
+              const end = Math.min(totalPages, page + pageWindow);
+              if (start > 1) {
+                buttons.push(
+                  <button key={1} onClick={go(1)} className={`px-3 py-1.5 rounded-md border ${page === 1 ? "bg-red-500 text-white border-red-500" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"}`}>
+                    1
+                  </button>
+                );
+                if (start > 2) {
+                  buttons.push(<span key="dots-start" className="px-2 text-neutral-400">…</span>);
+                }
+              }
+              for (let p = start; p <= end; p++) {
+                buttons.push(
+                  <button
+                    key={p}
+                    onClick={go(p)}
+                    className={`px-3 py-1.5 rounded-md border ${page === p ? "bg-red-500 text-white border-red-500" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"}`}
+                  >
+                    {p}
+                  </button>
+                );
+              }
+              if (end < totalPages) {
+                if (end < totalPages - 1) {
+                  buttons.push(<span key="dots-end" className="px-2 text-neutral-400">…</span>);
+                }
+                buttons.push(
+                  <button key={totalPages} onClick={go(totalPages)} className={`px-3 py-1.5 rounded-md border ${page === totalPages ? "bg-red-500 text-white border-red-500" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"}`}>
+                    {totalPages}
+                  </button>
+                );
+              }
+
+              // Next
+              buttons.push(
+                <button
+                  key="next"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 rounded-md border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+                >
+                  Next
+                </button>
+              );
+
+              return <>{buttons}</>;
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* Modern Detail Modal */}
       {selected && (
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4" style={{animation: 'modal-scale-in 0.5s cubic-bezier(0.4, 0, 0.2, 1)'}}>
@@ -639,7 +734,7 @@ export default function StageReportListClient({ stage }: { stage: number }) {
             role="dialog"
             aria-modal="true"
             tabIndex={-1}
-            className="relative w-full max-w-5xl max-h-[92vh] overflow-hidden transform-gpu"
+            className="relative w-full max-w-7xl max-h-[96vh] overflow-hidden transform-gpu"
             onClick={(e) => e.stopPropagation()}
             style={{animation: 'modal-slide-in 0.6s cubic-bezier(0.4, 0, 0.2, 1)'}}
           >
@@ -691,7 +786,7 @@ export default function StageReportListClient({ stage }: { stage: number }) {
               </div>
 
               {/* Content */}
-              <div className="max-h-[72vh] overflow-y-auto px-8 py-6">
+              <div className="max-h-[85vh] overflow-y-auto px-8 py-6">
 
                 {/* Status & Meta Info */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -991,7 +1086,7 @@ export default function StageReportListClient({ stage }: { stage: number }) {
             role="dialog"
             aria-modal="true"
             tabIndex={-1}
-            className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden transform-gpu"
+            className="relative w-full max-w-6xl max-h-[96vh] overflow-hidden transform-gpu"
             onClick={(e) => e.stopPropagation()}
             style={{animation: 'modal-slide-in 0.5s cubic-bezier(0.4, 0, 0.2, 1)'}}
           >
@@ -1026,7 +1121,7 @@ export default function StageReportListClient({ stage }: { stage: number }) {
               </div>
 
               {/* Content */}
-              <div className="max-h-[78vh] overflow-y-auto px-6 py-6">
+              <div className="max-h-[88vh] overflow-y-auto px-6 py-6">
                 <form
                   className="space-y-6"
                   onSubmit={async (e) => {
