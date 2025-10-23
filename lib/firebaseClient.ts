@@ -1,10 +1,13 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
-import { getStorage, type FirebaseStorage } from "firebase/storage";
+import type { FirebaseStorage } from "firebase/storage";
 
-export type FirebaseBundle = { app: FirebaseApp; db: Firestore; storage: FirebaseStorage } | null;
+export type FirebaseBundle = { app: FirebaseApp; db: Firestore };
 
-export function getFirebaseClient(): FirebaseBundle {
+let cachedStorage: FirebaseStorage | null = null;
+let storageInitPromise: Promise<FirebaseStorage> | null = null;
+
+export function getFirebaseClient(): FirebaseBundle | null {
   const cfg = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -17,7 +20,24 @@ export function getFirebaseClient(): FirebaseBundle {
   if (!cfg.apiKey || !cfg.projectId || !cfg.appId) return null;
   const app = getApps().length ? getApps()[0]! : initializeApp(cfg);
   const db = getFirestore(app);
-  const storage = getStorage(app);
-  return { app, db, storage };
+  return { app, db };
 }
 
+export async function getFirebaseStorage(): Promise<FirebaseStorage | null> {
+  const bundle = getFirebaseClient();
+  if (!bundle) return null;
+  if (cachedStorage) return cachedStorage;
+  if (!storageInitPromise) {
+    storageInitPromise = import("firebase/storage")
+      .then(({ getStorage }) => {
+        const storage = getStorage(bundle.app);
+        cachedStorage = storage;
+        return storage;
+      })
+      .catch((err) => {
+        storageInitPromise = null;
+        throw err;
+      });
+  }
+  return storageInitPromise;
+}

@@ -1,5 +1,6 @@
-import Link from "next/link";
 import FormTahapSatuClient from "./FormTahapSatuClient";
+import ConfirmNavigationButton from "@/components/ConfirmNavigationButton";
+import { formStorageKey, unsavedFlagKey, UNSAVED_PROGRESS_CONFIRM_MESSAGE } from "@/lib/progressDraftKeys";
 
 export const metadata = {
   title: "Laporan Tahap 1 - Sistem Dokumentasi Progres",
@@ -28,15 +29,19 @@ export default function LaporanTahapSatu() {
       {/* Topbar */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-2xl sm:max-w-3xl px-3 sm:px-4 py-3 flex items-center justify-between">
-          <Link
+          <ConfirmNavigationButton
             href="/dashboard/laporan-progres"
+            draftStorageKey={formStorageKey(1)}
+            unsavedSessionKey={unsavedFlagKey(1)}
+            confirmMessage={UNSAVED_PROGRESS_CONFIRM_MESSAGE}
             className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm"
             title="Kembali"
+            aria-label="Kembali ke daftar laporan progres"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
               <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />
             </svg>
-          </Link>
+          </ConfirmNavigationButton>
           <div className="text-sm sm:text-base font-semibold tracking-wide">Laporan Tahap 1</div>
           <div className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-red-600 shadow-sm">
             <svg viewBox="0 0 100 100" className="h-4 w-4" fill="currentColor" aria-hidden>

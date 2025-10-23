@@ -52,6 +52,66 @@ export default function LaporanAdminClient() {
   const [totalCount, setTotalCount] = useState<number>(0);
   const itemsPerPage = 5;
 
+  // Bulk selection state
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+  // Bulk selection functions
+  const toggleSelection = (itemId: string) => {
+    const newSelection = new Set(selectedItems);
+    if (newSelection.has(itemId)) {
+      newSelection.delete(itemId);
+    } else {
+      newSelection.add(itemId);
+    }
+    setSelectedItems(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedItems.size === filteredItems.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(filteredItems.map(item => item.id)));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedItems(new Set());
+    setIsSelectionMode(false);
+  };
+
+  const deleteSelectedItems = async () => {
+    if (selectedItems.size === 0) return;
+
+    const fb = getFirebaseClient();
+    if (!fb) return;
+
+    try {
+      const { doc, deleteDoc } = await import("firebase/firestore");
+
+      // Delete all selected items
+      const deletePromises = Array.from(selectedItems).map(async (itemId) => {
+        const docRef = doc(fb.db, "Progress_Diana", itemId);
+        await deleteDoc(docRef);
+
+        // Delete notification if exists
+        try {
+          const notifRef = doc(fb.db, "Progress_Diana_Notifikasi", itemId);
+          await deleteDoc(notifRef);
+        } catch {}
+      });
+
+      await Promise.all(deletePromises);
+
+      // Update local state
+      setItems(items.filter((x) => !selectedItems.has(x.id)));
+      clearSelection();
+    } catch (err) {
+      console.error("Error bulk deleting:", err);
+      alert("Gagal menghapus data");
+    }
+  };
+
   // Reset pagination cache when filters change
   useEffect(() => {
     setLastDocs(new Map([[0, null]]));
@@ -316,6 +376,64 @@ export default function LaporanAdminClient() {
 
   return (
     <div className="space-y-6">
+      {/* Bulk Selection Actions Bar */}
+      {selectedItems.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                  <path d="M3 6a1 1 0 011-1h16a1 1 0 110 2H4a1 1 0 01-1-1zM3 12a1 1 0 011-1h16a1 1 0 110 2H4a1 1 0 01-1-1zM4 17a1 1 0 100 2h16a1 1 0 100-2H4z"/>
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-medium text-blue-900">
+                  {selectedItems.size} item{selectedItems.size > 1 ? 's' : ''} dipilih
+                </div>
+                <div className="text-xs text-blue-700">
+                  Pilih aksi yang ingin dilakukan
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-100 border border-blue-200 rounded-lg hover:bg-blue-200 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" className={`h-3 w-3 ${selectedItems.size === filteredItems.length ? 'text-blue-600' : ''}`} fill="currentColor">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                {selectedItems.size === filteredItems.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
+              </button>
+
+              <button
+                type="button"
+                onClick={deleteSelectedItems}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+                  <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Hapus Dipilih ({selectedItems.size})
+              </button>
+
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+                  <path d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -332,6 +450,24 @@ export default function LaporanAdminClient() {
               <path d="M12,11L10,13L8,11V16H16V11L14,13L12,11Z" />
             </svg>
             Export Data
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsSelectionMode(!isSelectionMode)}
+            className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs sm:text-sm shadow-sm whitespace-nowrap transition-colors ${
+              isSelectionMode
+                ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'
+                : 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100'
+            }`}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+              {isSelectionMode ? (
+                <path d="M6 18L18 6M6 6l12 12"/>
+              ) : (
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              )}
+            </svg>
+            {isSelectionMode ? 'Exit Selection' : 'Select Mode'}
           </button>
         </div>
       </div>
@@ -499,6 +635,16 @@ export default function LaporanAdminClient() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
+                    {isSelectionMode && (
+                      <th className="w-12 py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.size === filteredItems.length && filteredItems.length > 0}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                        />
+                      </th>
+                    )}
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Nama</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Lokasi</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Pekerjaan</th>
@@ -510,7 +656,19 @@ export default function LaporanAdminClient() {
                 </thead>
                 <tbody>
                   {filteredItems.map((item) => (
-                    <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <tr key={item.id} className={`border-b border-gray-100 hover:bg-gray-50 ${
+                      selectedItems.has(item.id) ? 'bg-blue-50/30' : ''
+                    }`}>
+                      {isSelectionMode && (
+                        <td className="py-3 px-4 w-12">
+                          <input
+                            type="checkbox"
+                            checked={selectedItems.has(item.id)}
+                            onChange={() => toggleSelection(item.id)}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                          />
+                        </td>
+                      )}
                       <td className="py-3 px-4">
                         <div>
                           <p className="font-medium text-gray-900">{item.nama || 'Tidak ada nama'}</p>

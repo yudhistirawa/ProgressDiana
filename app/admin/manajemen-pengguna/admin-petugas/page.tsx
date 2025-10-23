@@ -33,24 +33,11 @@ export default function UserAdminPetugasPage() {
           <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
             <div className="px-4 py-2 border-b border-neutral-200 text-sm font-semibold">Manajemen Pengguna</div>
             <nav className="p-3 grid gap-2 text-sm">
-              <Link href="/admin/dashboard" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">
-                Home
-              </Link>
-              <Link
-                href="/admin/laporan-progres"
-                className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50"
-              >
-                Laporan Progres
-              </Link>
-              <Link href="/admin/manajemen-pengguna" className="rounded-lg bg-red-600 text-white px-3 py-2">
-                Manajemen Pengguna
-              </Link>
-              <Link
-                href="/admin/formulir-tahapan"
-                className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50"
-              >
-                Kelola Formulir & Tahapan
-              </Link>
+              <Link href="/admin/dashboard" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Home</Link>
+              <Link href="/admin/laporan-progres" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Laporan Progres</Link>
+              <Link href="/admin/manajemen-pengguna" className="rounded-lg bg-red-600 text-white px-3 py-2">Manajemen Pengguna</Link>
+              <Link href="/admin/formulir-tahapan" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Kelola Formulir & Tahapan</Link>
+              <Link href="/admin/sampah" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Tempat Sampah</Link>
             </nav>
           </div>
         </aside>

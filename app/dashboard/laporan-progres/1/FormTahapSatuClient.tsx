@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { getFirebaseClient } from "../../../../lib/firebaseClient";
+import { getFirebaseClient, getFirebaseStorage } from "../../../../lib/firebaseClient";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
+import type { FirebaseStorage } from "firebase/storage";
 import dynamic from 'next/dynamic';
 
 // Lazy load the ProgressTable component to avoid SSR issues with Firebase
@@ -12,7 +13,7 @@ const ProgressTable = dynamic(
 
 type FieldSpec = { id: number; label: string; type: "text" | "photo" };
 
-async function addGeotagToImage(file: File, lat: number, lon: number, accuracy?: number, userInfo?: { name?: string; email?: string; uid?: string }): Promise<File> {
+async function addGeotagToImage(file: File, lat: number, lon: number, accuracy?: number, userInfo?: { name?: string; email?: string; uid?: string }, address?: string): Promise<File> {
   try {
     // For mobile devices with camera, try to add GPS metadata
     if ('ImageCapture' in window || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
@@ -37,21 +38,21 @@ async function addGeotagToImage(file: File, lat: number, lon: number, accuracy?:
           ctx.drawImage(img, 0, 0);
 
           // Create semi-transparent overlay background
-          const overlayHeight = 140;
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-          ctx.fillRect(10, canvas.height - overlayHeight - 10, Math.min(400, canvas.width - 20), overlayHeight);
+          const overlayHeight = 180; // Increased height for more info
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+          ctx.fillRect(10, canvas.height - overlayHeight - 10, Math.min(450, canvas.width - 20), overlayHeight);
 
           // Set text properties
           ctx.fillStyle = 'white';
           ctx.textAlign = 'left';
 
-          // Title
-          ctx.font = 'bold 14px Arial';
-          ctx.fillText('📍 GEOSTAMP INFO', 20, canvas.height - overlayHeight + 20);
+          // Title with Progress Diana branding
+          ctx.font = 'bold 16px Arial';
+          ctx.fillText('📍 PROGRESS DIANA - GEOSTAMP', 20, canvas.height - overlayHeight + 25);
 
           // Content
-          ctx.font = '11px Arial';
-          let yPos = canvas.height - overlayHeight + 40;
+          ctx.font = '12px Arial';
+          let yPos = canvas.height - overlayHeight + 50;
 
           // Date & Time with Timezone
           const localDateTime = timestamp.toLocaleString('id-ID', {
@@ -63,29 +64,87 @@ async function addGeotagToImage(file: File, lat: number, lon: number, accuracy?:
             minute: '2-digit',
             second: '2-digit'
           });
-          ctx.fillText(`⏰ ${localDateTime} (${timezone})`, 20, yPos);
-          yPos += 18;
+          ctx.font = 'bold 12px Arial';
+          ctx.fillText('⏰ WAKTU & TANGGAL', 20, yPos);
+          yPos += 20;
+          ctx.font = '11px Arial';
+          ctx.fillText(`   ${localDateTime}`, 20, yPos);
+          yPos += 20;
 
           // GPS Coordinates (WGS84)
-          ctx.fillText(`📍 ${lat.toFixed(8)}, ${lon.toFixed(8)} (WGS84)`, 20, yPos);
-          yPos += 18;
+          ctx.font = 'bold 12px Arial';
+          ctx.fillText('📍 KOORDINAT GPS', 20, yPos);
+          yPos += 20;
+          ctx.font = '11px Arial';
+          ctx.fillText(`   ${lat.toFixed(8)}, ${lon.toFixed(8)} (WGS84)`, 20, yPos);
+          yPos += 20;
 
           // Accuracy
           if (accuracy) {
-            ctx.fillText(`🎯 Akurasi: ±${Math.round(accuracy)}m`, 20, yPos);
-            yPos += 18;
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText('🎯 AKURASI GPS', 20, yPos);
+            yPos += 20;
+            ctx.font = '11px Arial';
+            ctx.fillText(`   ±${Math.round(accuracy)}m`, 20, yPos);
+            yPos += 20;
+          }
+
+          // Address (if available)
+          if (address) {
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText('🏠 ALAMAT', 20, yPos);
+            yPos += 20;
+            ctx.font = '11px Arial';
+            // Wrap text if too long
+            const maxWidth = Math.min(430, canvas.width - 40);
+            const words = address.split(' ');
+            let line = '';
+            for (const word of words) {
+              const testLine = line + word + ' ';
+              const metrics = ctx.measureText(testLine);
+              if (metrics.width > maxWidth && line !== '') {
+                ctx.fillText(`   ${line}`, 20, yPos);
+                yPos += 18;
+                line = word + ' ';
+              } else {
+                line = testLine;
+              }
+            }
+            ctx.fillText(`   ${line}`, 20, yPos);
+            yPos += 20;
           }
 
           // User Information
           if (userInfo?.name || userInfo?.email) {
-            const userText = userInfo.name ? `👤 ${userInfo.name}` : `👤 ${userInfo.email}`;
-            ctx.fillText(userText, 20, yPos);
-            yPos += 18;
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText('👤 INFORMASI PETUGAS', 20, yPos);
+            yPos += 20;
+            ctx.font = '11px Arial';
+            const userText = userInfo.name ? `${userInfo.name}` : `${userInfo.email}`;
+            ctx.fillText(`   ${userText}`, 20, yPos);
+            yPos += 20;
           }
 
           // Device Information
-          ctx.fillText(`📱 ${deviceInfo.model} (${deviceInfo.os})`, 20, yPos);
-          yPos += 18;
+          ctx.font = 'bold 12px Arial';
+          ctx.fillText('📱 PERANGKAT', 20, yPos);
+          yPos += 20;
+          ctx.font = '11px Arial';
+          ctx.fillText(`   ${deviceInfo.model} (${deviceInfo.os})`, 20, yPos);
+          yPos += 20;
+
+          // Add separator line
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(20, yPos - 10);
+          ctx.lineTo(Math.min(430, canvas.width - 30), yPos - 10);
+          ctx.stroke();
+
+          // Add system info
+          ctx.font = '10px Arial';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.fillText('Sistem Dokumentasi Progress - Diana', 20, yPos);
 
           // Convert canvas to blob
           const geotaggedBlob = await new Promise<Blob | null>((resolve) => {
@@ -93,7 +152,7 @@ async function addGeotagToImage(file: File, lat: number, lon: number, accuracy?:
           });
 
           if (geotaggedBlob) {
-            const geotaggedFile = new File([geotaggedBlob], `geotagged_${file.name}`, {
+            const geotaggedFile = new File([geotaggedBlob], `geostamped_${file.name}`, {
               type: 'image/jpeg',
               lastModified: Date.now()
             });
@@ -104,7 +163,8 @@ async function addGeotagToImage(file: File, lat: number, lon: number, accuracy?:
               coordinates: `${lat.toFixed(8)}, ${lon.toFixed(8)}`,
               accuracy: accuracy ? `±${Math.round(accuracy)}m` : 'N/A',
               user: userInfo,
-              device: deviceInfo
+              device: deviceInfo,
+              timezone: timezone
             });
 
             return geotaggedFile;
@@ -279,7 +339,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
   const [address, setAddress] = useState<string>("");
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeErr, setGeocodeErr] = useState<string | null>(null);
-  const [autoTimestamp, setAutoTimestamp] = useState(true);
+  const [autoTimestamp, setAutoTimestamp] = useState<boolean>(true);
   
   // State untuk menyimpan data progress
   const [progressData, setProgressData] = useState<Array<{
@@ -310,6 +370,44 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
   const [uploadPerc, setUploadPerc] = useState<number[]>([]);
   const [uploadErr, setUploadErr] = useState<(string | null)[]>([]);
   const [photoSource, setPhotoSource] = useState<Record<number, 'camera' | 'gallery'>>({});
+
+  // Load persisted data from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedAutoTimestamp = localStorage.getItem('autoTimestamp');
+      if (storedAutoTimestamp !== null) {
+        const parsedAutoTimestamp = JSON.parse(storedAutoTimestamp);
+        setAutoTimestamp(parsedAutoTimestamp);
+
+        const isManual = !parsedAutoTimestamp;
+        if (isManual) {
+          const storedDateStr = localStorage.getItem('manualDateStr');
+          const storedDateISO = localStorage.getItem('manualDateISO');
+          const storedTimeStr = localStorage.getItem('manualTimeStr');
+
+          if (storedDateStr) setDateStr(storedDateStr);
+          if (storedDateISO) setDateISO(storedDateISO);
+          if (storedTimeStr) setTimeStr(storedTimeStr);
+        }
+      }
+    }
+  }, []);
+
+  // Persist autoTimestamp to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('autoTimestamp', JSON.stringify(autoTimestamp));
+    }
+  }, [autoTimestamp]);
+
+  // Persist manual date and time to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !autoTimestamp) {
+      localStorage.setItem('manualDateStr', dateStr);
+      localStorage.setItem('manualDateISO', dateISO);
+      localStorage.setItem('manualTimeStr', timeStr);
+    }
+  }, [dateStr, dateISO, timeStr, autoTimestamp]);
 
   // Initialize clock from device time and keep ticking
   useEffect(() => {
@@ -384,10 +482,13 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         setGps({ lat: latitude, lon: longitude, accuracy, updated: pos.timestamp });
-        const gpsTime = new Date(pos.timestamp || Date.now());
-        setDateISO(gpsTime.toISOString().slice(0, 10));
-        setDateStr(gpsTime.toLocaleDateString("id-ID"));
-        setTimeStr(gpsTime.toLocaleTimeString("id-ID", { hour12: false }));
+        // Only update time if in auto mode
+        if (autoTimestamp) {
+          const gpsTime = new Date(pos.timestamp || Date.now());
+          setDateISO(gpsTime.toISOString().slice(0, 10));
+          setDateStr(gpsTime.toLocaleDateString("id-ID"));
+          setTimeStr(gpsTime.toLocaleTimeString("id-ID", { hour12: false }));
+        }
       },
       (err) => {
         setGpsStatus(err.code === 1 ? "denied" : "error");
@@ -395,7 +496,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
     );
     return () => navigator.geolocation.clearWatch(id);
-  }, []);
+  }, [autoTimestamp]);
 
   // Reverse geocoding when lat/lon available
   useEffect(() => {
@@ -472,6 +573,14 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
           const fd = new FormData(formEl);
           // Siapkan upload ke Firebase (jika tersedia)
           const fb = getFirebaseClient();
+          let storage: FirebaseStorage | null = null;
+          if (fb) {
+            try {
+              storage = await getFirebaseStorage();
+            } catch (storageErr) {
+              console.error("Gagal menginisialisasi Firebase Storage:", storageErr);
+            }
+          }
           const recId = (typeof crypto !== "undefined" && (crypto as any).randomUUID)
             ? (crypto as any).randomUUID()
             : String(Date.now());
@@ -483,7 +592,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
             if (fdef.type === "photo") {
               const file = dynPhotoFiles[i];
               let value: any = null;
-              if (file && fb) {
+              if (file && fb && storage) {
                 try {
                   const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage");
                   // Use unique object name to avoid 412 (precondition) when same filename is uploaded twice
@@ -491,7 +600,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                     ? (crypto as any).randomUUID()
                     : Math.random().toString(36).slice(2);
                   const path = `Progress_Diana/${recId}/${i + 1}_${uniq}_${file.name}`;
-                  const r = ref(fb.storage, path);
+                  const r = ref(storage, path);
                   await new Promise<void>((resolve, reject) => {
                     const task = uploadBytesResumable(r, file, { contentType: file.type || "image/webp" });
                     task.on(
@@ -728,7 +837,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                           console.warn('⚠️ Could not get user info for geotagging:', authError);
                         }
 
-                        geotaggedFile = await addGeotagToImage(f0, gps.lat, gps.lon, gps.accuracy, userInfo);
+                        geotaggedFile = await addGeotagToImage(f0, gps.lat, gps.lon, gps.accuracy, userInfo, address);
                         console.log('✅ Comprehensive geotag added successfully');
                       } catch (geotagError) {
                         console.warn('⚠️ Geotagging failed, using original file:', geotagError);
@@ -770,10 +879,41 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                     if (!f0) return;
                     setDynPhotoNames((arr) => {
                       const next = [...arr];
-                      next[i] = "Mengonversi...";
+                      next[i] = "Menambahkan geotag...";
                       return next;
                     });
-                    const webp = await fileToWebp(f0, 0.85);
+
+                    // Add geotag to the image if GPS is available
+                    let geotaggedFile = f0;
+                    if (gps.lat && gps.lon) {
+                      try {
+                        // Get current user information for geotagging
+                        let userInfo: { name?: string; email?: string; uid?: string } | undefined;
+                        try {
+                          const { getAuth } = await import("firebase/auth");
+                          const auth = getAuth();
+                          if (auth.currentUser) {
+                            userInfo = {
+                              name: auth.currentUser.displayName ?? undefined,
+                              email: auth.currentUser.email ?? undefined,
+                              uid: auth.currentUser.uid
+                            };
+                          }
+                        } catch (authError) {
+                          console.warn('⚠️ Could not get user info for geotagging:', authError);
+                        }
+
+                        geotaggedFile = await addGeotagToImage(f0, gps.lat, gps.lon, gps.accuracy, userInfo, address);
+                        console.log('✅ Comprehensive geotag added successfully');
+                      } catch (geotagError) {
+                        console.warn('⚠️ Geotagging failed, using original file:', geotagError);
+                        geotaggedFile = f0;
+                      }
+                    } else {
+                      console.warn('⚠️ No GPS data available for geotagging');
+                    }
+
+                    const webp = await fileToWebp(geotaggedFile, 0.85);
                     setDynPhotoFiles((arr) => {
                       const next = [...arr];
                       next[i] = webp;
@@ -910,8 +1050,39 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
             onChange={async (e) => {
               const f = e.target.files?.[0];
               if (!f) return;
-              setFileWajibName("Mengonversi...");
-              const webp = await fileToWebp(f, 0.85);
+              setFileWajibName("Menambahkan geotag...");
+
+              // Add geotag to the image if GPS is available
+              let geotaggedFile = f;
+              if (gps.lat && gps.lon) {
+                try {
+                  // Get current user information for geotagging
+                  let userInfo: { name?: string; email?: string; uid?: string } | undefined;
+                  try {
+                    const { getAuth } = await import("firebase/auth");
+                    const auth = getAuth();
+                    if (auth.currentUser) {
+                      userInfo = {
+                        name: auth.currentUser.displayName ?? undefined,
+                        email: auth.currentUser.email ?? undefined,
+                        uid: auth.currentUser.uid
+                      };
+                    }
+                  } catch (authError) {
+                    console.warn('⚠️ Could not get user info for geotagging:', authError);
+                  }
+
+                  geotaggedFile = await addGeotagToImage(f, gps.lat, gps.lon, gps.accuracy, userInfo, address);
+                  console.log('✅ Comprehensive geotag added successfully');
+                } catch (geotagError) {
+                  console.warn('⚠️ Geotagging failed, using original file:', geotagError);
+                  geotaggedFile = f;
+                }
+              } else {
+                console.warn('⚠️ No GPS data available for geotagging');
+              }
+
+              const webp = await fileToWebp(geotaggedFile, 0.85);
               setFileWajib(webp);
               setFileWajibName(`${webp.name} (${formatBytes(webp.size)})`);
               setPreviewSafely(setFileWajibPreview, fileWajibPreview, webp);
@@ -971,8 +1142,39 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
             onChange={async (e) => {
               const f = e.target.files?.[0];
               if (!f) return;
-              setFileOpsionalName("Mengonversi...");
-              const webp = await fileToWebp(f, 0.85);
+              setFileOpsionalName("Menambahkan geotag...");
+
+              // Add geotag to the image if GPS is available
+              let geotaggedFile = f;
+              if (gps.lat && gps.lon) {
+                try {
+                  // Get current user information for geotagging
+                  let userInfo: { name?: string; email?: string; uid?: string } | undefined;
+                  try {
+                    const { getAuth } = await import("firebase/auth");
+                    const auth = getAuth();
+                    if (auth.currentUser) {
+                      userInfo = {
+                        name: auth.currentUser.displayName ?? undefined,
+                        email: auth.currentUser.email ?? undefined,
+                        uid: auth.currentUser.uid
+                      };
+                    }
+                  } catch (authError) {
+                    console.warn('⚠️ Could not get user info for geotagging:', authError);
+                  }
+
+                  geotaggedFile = await addGeotagToImage(f, gps.lat, gps.lon, gps.accuracy, userInfo, address);
+                  console.log('✅ Comprehensive geotag added successfully');
+                } catch (geotagError) {
+                  console.warn('⚠️ Geotagging failed, using original file:', geotagError);
+                  geotaggedFile = f;
+                }
+              } else {
+                console.warn('⚠️ No GPS data available for geotagging');
+              }
+
+              const webp = await fileToWebp(geotaggedFile, 0.85);
               setFileOpsional(webp);
               setFileOpsionalName(`${webp.name} (${formatBytes(webp.size)})`);
               setPreviewSafely(setFileOpsionalPreview, fileOpsionalPreview, webp);
@@ -1035,6 +1237,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                   })
                 }
                 className="text-[11px] font-medium text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline"
+                suppressHydrationWarning={true}
               >
                 {autoTimestamp ? "Ubah manual" : "Gunakan otomatis"}
               </button>
@@ -1057,8 +1260,16 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                   if (iso) {
                     const local = new Date(`${iso}T00:00:00`).toLocaleDateString("id-ID");
                     setDateStr(local);
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('manualDateISO', iso);
+                      localStorage.setItem('manualDateStr', local);
+                    }
                   } else {
                     setDateStr("");
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('manualDateISO', iso);
+                      localStorage.setItem('manualDateStr', "");
+                    }
                   }
                 }}
                 className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-4 py-2.5 text-sm shadow-inner text-neutral-700 focus:outline-none focus:ring-2 focus:ring-red-300"
@@ -1076,7 +1287,13 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
             <input
               type="text"
               value={timeStr}
-              onChange={(e) => setTimeStr(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setTimeStr(value);
+                if (typeof window !== 'undefined' && !autoTimestamp) {
+                  localStorage.setItem('manualTimeStr', value);
+                }
+              }}
               readOnly={autoTimestamp}
               className={`w-full rounded-2xl border-0 ring-1 ring-neutral-300 px-4 py-2.5 text-sm shadow-inner text-neutral-700 transition-colors ${
                 autoTimestamp ? "bg-neutral-50" : "bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
