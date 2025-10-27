@@ -1,13 +1,13 @@
 import Link from "next/link";
 import AvatarMenuClient from "../components/AvatarMenuClient";
-import ProgressGridClient from "./ProgressGridClient";
+import DataHarianClient from "./DataHarianClient";
 
 export const metadata = {
-  title: "Laporan Progres - Admin",
-  description: "Pilih tahap progres untuk dikelola",
+  title: "Data Masuk Harian - Admin",
+  description: "Lihat statistik data yang masuk per hari",
 };
 
-export default function AdminLaporanProgres() {
+export default function DataHarianPage() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       {/* Decorative background */}
@@ -28,20 +28,10 @@ export default function AdminLaporanProgres() {
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 grid grid-cols-12 items-center gap-3">
           <div className="col-span-12 sm:col-span-3 flex items-center gap-2">
-            <Link href="/admin/dashboard" className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm" title="Kembali">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
-                <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />
-              </svg>
-            </Link>
-            <div className="text-sm sm:text-base font-semibold tracking-wide">Laporan Progres</div>
+            <div className="text-sm sm:text-base font-semibold tracking-wide">Data Masuk Harian</div>
           </div>
           <div className="col-span-12 sm:col-span-6" />
           <div className="col-span-12 sm:col-span-3 flex items-center justify-end gap-2">
-            <Link href="/admin/notifikasi" className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm" title="Notifikasi">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-                <path d="M12 3a9 9 0 0 0-9 9 9 9 0 0 0 5 8v1a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-1a9 9 0 0 0 5-8 9 9 0 0 0-9-9Zm1 18h-2v-2h2v2Zm0-4h-2a5 5 0 0 1-5-5h2a3 3 0 0 0 3 3h2a3 3 0 0 0 3-3h2a5 5 0 0 1-5 5Z" />
-              </svg>
-            </Link>
             <AvatarMenuClient />
           </div>
         </div>
@@ -50,12 +40,12 @@ export default function AdminLaporanProgres() {
       <div className="mx-auto max-w-6xl grid grid-cols-12 gap-4 px-4 py-6">
         {/* Sidebar */}
         <aside className="col-span-12 sm:col-span-3 lg:col-span-3">
-          <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-4 py-2 border-b border-neutral-200 text-sm font-semibold">Laporan Progres</div>
+          <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden sm:sticky sm:top-24">
+            <div className="px-4 py-2 border-b border-neutral-200 text-sm font-semibold">Menu</div>
             <nav className="p-3 grid gap-2 text-sm">
               <Link href="/admin/dashboard" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Home</Link>
-              <Link href="/admin/laporan-progres" className="rounded-lg bg-red-600 text-white px-3 py-2">Laporan Progres</Link>
-              <Link href="/admin/data-harian" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Data Masuk Harian</Link>
+              <Link href="/admin/laporan-progres" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Laporan Progres</Link>
+              <Link href="/admin/data-harian" className="rounded-lg bg-red-600 text-white px-3 py-2">Data Masuk Harian</Link>
               <Link href="/admin/manajemen-pengguna" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Manajemen Pengguna</Link>
               <Link href="/admin/formulir-tahapan" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Kelola Formulir & Tahapan</Link>
               <Link href="/admin/sampah" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Tempat Sampah</Link>
@@ -64,8 +54,8 @@ export default function AdminLaporanProgres() {
         </aside>
 
         {/* Content */}
-        <main className="col-span-12 sm:col-span-9">
-          <ProgressGridClient />
+        <main className="col-span-12 sm:col-span-9 flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
+          <DataHarianClient />
         </main>
       </div>
     </div>

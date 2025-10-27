@@ -18,7 +18,7 @@ import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 export type User = {
   id: string;
   username: string;
-  role: string; // "admin" | "pelaksana"
+  role: string; // "admin" | "pelaksana" | "viewer" | "admin-petugas"
   name?: string;
   phone?: string;
   email?: string;
@@ -29,19 +29,24 @@ export type User = {
   isAdminPetugas?: boolean;
 };
 
-type UserClientType = "admin" | "pelaksana" | "petugasAdmin";
+type UserClientType = "admin" | "pelaksana" | "petugasAdmin" | "viewer";
 
 export default function UsersClient({ type }: { type: UserClientType }) {
   const isPetugasAdmin = type === "petugasAdmin";
-  const baseRole: "admin" | "pelaksana" = type === "admin" ? "admin" : "pelaksana";
+  const isViewer = type === "viewer";
+  const baseRole: "admin" | "pelaksana" | "viewer" = 
+    type === "admin" ? "admin" : 
+    type === "viewer" ? "viewer" : "pelaksana";
   const title =
-    type === "admin" ? "List User Admin" : type === "pelaksana" ? "List User Pelaksana" : "List User Admin Petugas";
+    type === "admin" ? "List User Admin" : 
+    type === "pelaksana" ? "List User Pelaksana" : 
+    type === "viewer" ? "List User Viewer" : "List User Admin Petugas";
   const fb = getFirebaseClient();
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState<null | { id?: string }>(null);
   const [formUsername, setFormUsername] = useState("");
-  const [formRole, setFormRole] = useState<"admin" | "pelaksana">(baseRole);
+  const [formRole, setFormRole] = useState<"admin" | "pelaksana" | "viewer">(baseRole);
   const [formFullName, setFormFullName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -71,6 +76,10 @@ export default function UsersClient({ type }: { type: UserClientType }) {
           roleValue === "admin-petugas" ||
           usernameValue === "petugasadmin" ||
           emailValue.includes("petugas.admin");
+        
+        if (type === "viewer") {
+          return roleValue === "viewer";
+        }
 
         if (type === "admin") {
           return roleValue === "admin";
@@ -128,50 +137,56 @@ export default function UsersClient({ type }: { type: UserClientType }) {
   };
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-center text-sm sm:text-base font-semibold">{title}</h2>
-      {isPetugasAdmin && (
-        <div className="rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs sm:text-sm px-4 py-3">
-          Akun Admin Petugas menggunakan role pelaksana agar dapat login melalui portal petugas. Gunakan email dan
-          password yang valid; role dan kategori akan dikunci otomatis sebagai admin petugas.
+    <>
+      {/* Filter and Actions */}
+      <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-4 space-y-4">
+        <h2 className="text-center text-sm sm:text-base font-semibold">{title}</h2>
+        {isPetugasAdmin && (
+          <div className="rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs sm:text-sm px-4 py-3">
+            Akun Admin Petugas menggunakan role pelaksana agar dapat login melalui portal petugas. Gunakan email dan
+            password yang valid; role dan kategori akan dikunci otomatis sebagai admin petugas.
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-xl">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+                <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4a1 1 0 0 0 1.4-1.4l-4.4-4.4A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1 0 12A6 6 0 0 1 10 4Z" />
+              </svg>
+            </span>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari berdasarkan username, nama, atau role..." className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-10 py-2.5 text-sm shadow-inner placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-300" />
+          </div>
+          <button onClick={openNew} className="inline-flex items-center justify-center h-10 w-10 rounded-full ring-1 ring-neutral-300 bg-white shadow" title="Tambah">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z"/></svg>
+          </button>
         </div>
-      )}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-xl">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-              <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4a1 1 0 0 0 1.4-1.4l-4.4-4.4A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1 0 12A6 6 0 0 1 10 4Z" />
-            </svg>
-          </span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search.." className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-10 py-2.5 text-sm shadow-inner placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-300" />
-        </div>
-        <button onClick={openNew} className="inline-flex items-center justify-center h-10 w-10 rounded-full ring-1 ring-neutral-300 bg-white shadow" title="Tambah">
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z"/></svg>
-        </button>
       </div>
 
-      <ul className="space-y-3">
-        {filtered.map((u) => (
-          <li key={u.id} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-3 py-2.5 flex items-center gap-3">
-              <div className="h-10 w-10 shrink-0 rounded-full bg-neutral-100 grid place-items-center text-[11px] text-neutral-600 ring-1 ring-neutral-200">Foto</div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium truncate">{u.username}</div>
-                <div className="text-xs text-neutral-500 truncate">
-                  {u.role}
-                  {u.category ? ` • ${u.category}` : ""}
+      {/* Scrollable User List */}
+      <div className="flex-1 overflow-y-auto pr-1">
+        <ul className="space-y-3">
+          {filtered.map((u) => (
+            <li key={u.id} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
+              <div className="px-3 py-2.5 flex items-center gap-3">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-neutral-100 grid place-items-center text-[11px] text-neutral-600 ring-1 ring-neutral-200">Foto</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{u.name || u.username}</div>
+                  <div className="text-xs text-neutral-500 truncate">
+                    @{u.username} • {u.role}
+                    {u.category ? ` • ${u.category}` : ""}
+                  </div>
+                </div>
+                <div className="text-right min-w-[150px]">
+                  <div className="mt-1 flex items-center justify-end gap-2">
+                    <button type="button" onClick={() => openEdit(u)} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Edit</button>
+                    <button type="button" onClick={async () => { if (!fb) return alert("Firebase belum siap"); if (!confirm(`Hapus user ${u.username}?`)) return; await deleteDoc(doc(fb.db, "users", u.id)); alert("User berhasil dihapus."); }} className="inline-flex items-center justify-center h-7 px-3 rounded-full bg-red-500 text-white hover:bg-red-600 text-xs">Hapus</button>
+                  </div>
                 </div>
               </div>
-              <div className="text-right min-w-[150px]">
-                <div className="mt-1 flex items-center justify-end gap-2">
-                  <button type="button" onClick={() => openEdit(u)} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Edit</button>
-                  <button type="button" onClick={async () => { if (!fb) return alert("Firebase belum siap"); if (!confirm(`Hapus user ${u.username}?`)) return; await deleteDoc(doc(fb.db, "users", u.id)); alert("User berhasil dihapus."); }} className="inline-flex items-center justify-center h-7 px-3 rounded-full bg-red-500 text-white hover:bg-red-600 text-xs">Hapus</button>
-                </div>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={() => setShowForm(null)}>
@@ -183,7 +198,7 @@ export default function UsersClient({ type }: { type: UserClientType }) {
                 if (!fb) { alert("Firebase belum siap"); return; }
                 if (!formUsername.trim()) { alert("Username wajib diisi"); return; }
                 if (formPassword !== formConfirm) { alert("Konfirmasi kata sandi tidak cocok"); return; }
-                const resolvedRole: "admin" | "pelaksana" = isPetugasAdmin ? "pelaksana" : formRole;
+                const resolvedRole = isPetugasAdmin ? "pelaksana" : formRole;
                 const data: any = {
                   username: formUsername.trim(),
                   role: resolvedRole,
@@ -242,6 +257,7 @@ export default function UsersClient({ type }: { type: UserClientType }) {
                     >
                       <option value="admin">Admin</option>
                       <option value="pelaksana">Pelaksana</option>
+                      <option value="viewer">Viewer</option>
                     </select>
                     <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-neutral-600">
                       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M6.3 9.3a1 1 0 0 1 1.4 0L12 13.6l4.3-4.3a1 1 0 1 1 1.4 1.4l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 0 1 0-1.4Z"/></svg>
@@ -289,17 +305,6 @@ export default function UsersClient({ type }: { type: UserClientType }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

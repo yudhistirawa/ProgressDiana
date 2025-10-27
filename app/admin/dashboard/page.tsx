@@ -73,9 +73,9 @@ export default function AdminDashboard() {
             <nav className="p-3 grid gap-2 text-sm">
               <Link href="/admin/dashboard" className="rounded-lg bg-red-600 text-white px-3 py-2">Home</Link>
               <Link href="/admin/laporan-progres" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Laporan Progres</Link>
+              <Link href="/admin/data-harian" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Data Masuk Harian</Link>
               <Link href="/admin/manajemen-pengguna" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Manajemen Pengguna</Link>
               <Link href="/admin/formulir-tahapan" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Kelola Formulir & Tahapan</Link>
-              <Link href="/admin/sampah" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Tempat Sampah</Link>
               <Link href="/admin/sampah" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Tempat Sampah</Link>
             </nav>
           </div>
@@ -92,6 +92,18 @@ export default function AdminDashboard() {
               </svg>
             </div>
             <div className="text-sm font-medium">Laporan Progres</div>
+          </Link>
+
+          <Link href="/admin/data-harian" className="group rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 p-6 text-center backdrop-blur hover:-translate-y-0.5">
+            <div className="mx-auto mb-4 h-16 w-16 rounded-xl grid place-items-center bg-gradient-to-br from-green-50 to-slate-100 ring-1 ring-neutral-200 text-neutral-800 group-hover:scale-105 transition-transform" aria-hidden>
+              <svg viewBox="0 0 48 48" className="h-9 w-9" fill="none">
+                <rect x="8" y="6" width="32" height="36" rx="3" fill="#E5E7EB" />
+                <path d="M14 14h20M14 22h16M14 30h12" stroke="#0F172A" strokeWidth="3" strokeLinecap="round" />
+                <circle cx="34" cy="34" r="6" fill="#10B981" />
+                <path d="M32 34l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className="text-sm font-medium">Data Masuk Harian</div>
           </Link>
 
           <Link href="/admin/manajemen-pengguna" className="group rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 p-6 text-center backdrop-blur hover:-translate-y-0.5">

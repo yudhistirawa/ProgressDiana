@@ -19,7 +19,7 @@ import {
   createUserWithEmailAndPassword,
 } from "firebase/auth";
 
-export type Role = "admin" | "petugas";
+export type Role = "admin" | "petugas" | "pelaksana" | "viewer";
 
 const COOKIE_NAME = "role";
 
@@ -58,7 +58,7 @@ export function clearAuth() {
   } catch {}
 }
 
-async function resolveEmailByUsername(username: string, role: "admin" | "pelaksana") {
+async function resolveEmailByUsername(username: string, role: Role) {
   const fb = getFirebaseClient();
   if (!fb) return null;
   const qy = query(
@@ -144,6 +144,35 @@ export async function verifyAdmin(usernameOrEmail: string, password: string) {
         return { ok: false, message: err?.message || "Gagal membuat admin default" } as const;
       }
     }
+    return { ok: false, message: e?.message || "Gagal login" } as const;
+  }
+}
+
+export async function verifyViewer(usernameOrEmail: string, password: string) {
+  const fb = getFirebaseClient();
+  if (!fb) return { ok: false, message: "Firebase belum terkonfigurasi" } as const;
+  const auth = getAuth();
+  const email = usernameOrEmail.includes("@")
+    ? usernameOrEmail
+    : (await resolveEmailByUsername(usernameOrEmail, "viewer")) || "";
+  if (!email) return { ok: false, message: "User tidak ditemukan" } as const;
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const u = cred.user;
+    const byId = await getDoc(doc(fb.db, "users", u.uid));
+    let role: string | null = null;
+    if (byId.exists()) role = (byId.data() as any)?.role;
+    if (!role) {
+      const qy = query(collection(fb.db, "users"), where("email", "==", email), limit(1));
+      const snap = await getDocs(qy);
+      if (!snap.empty) role = (snap.docs[0].data() as any)?.role;
+    }
+    if (role !== "viewer") {
+      await signOut(auth);
+      return { ok: false, message: "Akun bukan role viewer" } as const;
+    }
+    return { ok: true, user: { uid: u.uid, email, role } } as const;
+  } catch (e: any) {
     return { ok: false, message: e?.message || "Gagal login" } as const;
   }
 }

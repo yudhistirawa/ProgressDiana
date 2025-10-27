@@ -48,6 +48,7 @@ export default function ManajemenPengguna() {
             <nav className="p-3 grid gap-2 text-sm">
               <Link href="/admin/dashboard" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Home</Link>
               <Link href="/admin/laporan-progres" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Laporan Progres</Link>
+              <Link href="/admin/data-harian" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Data Masuk Harian</Link>
               <Link href="/admin/manajemen-pengguna" className="rounded-lg bg-red-600 text-white px-3 py-2">Manajemen Pengguna</Link>
               <Link href="/admin/formulir-tahapan" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Kelola Formulir & Tahapan</Link>
               <Link href="/admin/sampah" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Tempat Sampah</Link>
@@ -59,7 +60,7 @@ export default function ManajemenPengguna() {
         <main className="col-span-12 sm:col-span-9">
           <h2 className="text-center text-sm sm:text-base font-semibold mb-6">Manajemen Pengguna</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
             <Link href="/admin/manajemen-pengguna/admin" className="group rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 p-6 text-center backdrop-blur hover:-translate-y-0.5">
               <div className="mx-auto mb-4 h-16 w-16 rounded-xl grid place-items-center bg-gradient-to-br from-slate-50 to-slate-100 ring-1 ring-neutral-200 text-neutral-800 group-hover:scale-105 transition-transform" aria-hidden>
                 <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none">
@@ -93,6 +94,16 @@ export default function ManajemenPengguna() {
                 </svg>
               </div>
               <div className="text-sm font-medium">User Admin Petugas</div>
+            </Link>
+
+            <Link href="/admin/manajemen-pengguna/viewer" className="group rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 p-6 text-center backdrop-blur hover:-translate-y-0.5">
+              <div className="mx-auto mb-4 h-16 w-16 rounded-xl grid place-items-center bg-gradient-to-br from-slate-50 to-slate-100 ring-1 ring-neutral-200 text-neutral-800 group-hover:scale-105 transition-transform" aria-hidden>
+                <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none">
+                  <circle cx="24" cy="24" r="6" stroke="#0F172A" strokeWidth="3" />
+                  <path d="M42 24c-3.5-7-10.5-12-18-12S9.5 17 6 24c3.5 7 10.5 12 18 12s14.5-5 18-12z" stroke="#0F172A" strokeWidth="3" />
+                </svg>
+              </div>
+              <div className="text-sm font-medium">User Viewer</div>
             </Link>
           </div>
         </main>

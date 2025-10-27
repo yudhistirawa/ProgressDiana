@@ -39,6 +39,46 @@ export interface ProgressItem {
   stage?: number;
 }
 
+// Helper: parse various date formats into epoch millis (start of day for date-only strings)
+export const parseToEpoch = (v: any): number | null => {
+  if (v == null) return null;
+  // Firestore Timestamp-like
+  if (typeof v === "object" && typeof (v as any).toDate === "function") {
+    try {
+      return (v as any).toDate().getTime();
+    } catch {
+      return null;
+    }
+  }
+  if (typeof v === "number") return v;
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === "string") {
+    const s = v.trim();
+    // ISO-like (YYYY-MM-DD or full ISO)
+    const isoMatch = /^\d{4}-\d{2}-\d{2}/.exec(s);
+    if (isoMatch) {
+      const d = new Date(s);
+      if (!Number.isNaN(d.getTime())) return d.getTime();
+    }
+    // dd/MM/yyyy or dd-MM-yyyy [ optional time with : or . separators ]
+    const dmy = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[ T](\d{1,2})[:\.](\d{1,2})(?:[:\.](\d{1,2}))?)?/.exec(s);
+    if (dmy) {
+      const day = parseInt(dmy[1], 10);
+      const month = parseInt(dmy[2], 10) - 1;
+      const year = parseInt(dmy[3], 10);
+      const hour = dmy[4] ? parseInt(dmy[4], 10) : 0;
+      const min = dmy[5] ? parseInt(dmy[5], 10) : 0;
+      const sec = dmy[6] ? parseInt(dmy[6], 10) : 0;
+      const dt = new Date(year, month, day, hour, min, sec);
+      if (!Number.isNaN(dt.getTime())) return dt.getTime();
+    }
+    // Fallback to Date.parse
+    const t = Date.parse(s);
+    if (!Number.isNaN(t)) return t;
+  }
+  return null;
+};
+
 /**
  * Fetch progress data with cursor pagination
  */
@@ -230,6 +270,8 @@ export async function fetchStageProgressPage({
     return getDocs(q1);
   };
 
+  
+
   // Fallback without where constraints (avoid composite index); filter in memory
   const runFallback = async (from: QueryDocumentSnapshot<DocumentData> | null | undefined) => {
     // Stable ordering in fallback path as well
@@ -291,7 +333,14 @@ export async function fetchStageProgressPage({
       const stageOk = useFallback ? ((item as any)[fieldKey] === tahap) : true;
       // Date range is already filtered in primary; apply again in fallback
       const dateOk = useFallback
-        ? (!dateRange?.start || (item.tanggal ?? "") >= dateRange.start!) && (!dateRange?.end || (item.tanggal ?? "") <= dateRange.end!)
+        ? (() => {
+            const itemEpoch = parseToEpoch(item.tanggal);
+            const startEpoch = parseToEpoch(dateRange?.start);
+            const endEpoch = parseToEpoch(dateRange?.end);
+            if (startEpoch != null && (itemEpoch == null || itemEpoch < startEpoch)) return false;
+            if (endEpoch != null && (itemEpoch == null || itemEpoch > endEpoch)) return false;
+            return true;
+          })()
         : true;
       if (stageOk && dateOk && matchesSearch(item)) {
         collected.push({ item, snap: d });
@@ -326,8 +375,15 @@ export async function fetchStageProgressPage({
       const item = ({ id: d.id, ...raw } as unknown) as ProgressItem;
       const stageOk = useFallback ? item.stage === tahap : true;
       const dateOk = useFallback
-        ? (!dateRange?.start || (item.tanggal ?? "") >= dateRange.start!) && (!dateRange?.end || (item.tanggal ?? "") <= dateRange.end!)
-        : true;
+          ? (() => {
+              const itemEpoch = parseToEpoch(item.tanggal);
+              const startEpoch = parseToEpoch(dateRange?.start);
+              const endEpoch = parseToEpoch(dateRange?.end);
+              if (startEpoch != null && (itemEpoch == null || itemEpoch < startEpoch)) return false;
+              if (endEpoch != null && (itemEpoch == null || itemEpoch > endEpoch)) return false;
+              return true;
+            })()
+          : true;
       if (stageOk && dateOk && matchesSearch(item)) {
         hasNext = true;
         break;
@@ -454,8 +510,11 @@ export async function countProgress({
       const item = ({ id: d.id, ...raw } as unknown) as ProgressItem;
       if (useFallback) {
         if ((item as any)[fieldKey] !== tahap) continue;
-        if (dateRange?.start && (item.tanggal ?? "") < dateRange.start) continue;
-        if (dateRange?.end && (item.tanggal ?? "") > dateRange.end) continue;
+  const itemEpoch = parseToEpoch(item.tanggal);
+  const startEpoch = parseToEpoch(dateRange?.start);
+  const endEpoch = parseToEpoch(dateRange?.end);
+  if (startEpoch != null && (itemEpoch == null || itemEpoch < startEpoch)) continue;
+  if (endEpoch != null && (itemEpoch == null || itemEpoch > endEpoch)) continue;
       }
       if (matchesSearch(item)) count += 1;
     }
@@ -479,9 +538,11 @@ export function applyClientFilters<T extends ProgressItem>(
   // Date range filter
   if (filters.dateStart || filters.dateEnd) {
     filtered = filtered.filter(item => {
-      const itemDate = item.tanggal;
-      if (filters.dateStart && itemDate < filters.dateStart) return false;
-      if (filters.dateEnd && itemDate > filters.dateEnd) return false;
+      const itemEpoch = parseToEpoch(item.tanggal);
+      const startEpoch = parseToEpoch(filters.dateStart);
+      const endEpoch = parseToEpoch(filters.dateEnd);
+      if (startEpoch != null && (itemEpoch == null || itemEpoch < startEpoch)) return false;
+      if (endEpoch != null && (itemEpoch == null || itemEpoch > endEpoch)) return false;
       return true;
     });
   }

@@ -9,6 +9,7 @@ type Item = {
   nama?: string;
   lokasi?: string;
   pekerjaan?: string;
+  jenisPekerjaan?: string;
   kodeBendaUji?: string;
   kode_benda_uji?: string;
   mutuBeton?: string;
@@ -60,7 +61,7 @@ type EnrichedItem = Item & {
   fotoCount: number;
 };
 
-export default function StageReportListClient({ stage }: { stage: number | string }) {
+export default function StageReportListClient({ stage, readOnly }: { stage: number | string; readOnly?: boolean }) {
   const stageNumber = Number(stage);
   const stageFilter = Number.isNaN(stageNumber) ? stage : stageNumber;
   const isStage4 = Number(stageFilter) === 4;
@@ -453,70 +454,166 @@ export default function StageReportListClient({ stage }: { stage: number | strin
   }, [isModalOpen]);
 
   const enrichItem = (item: Item): EnrichedItem => {
-    let headerNama = item.nama || "";
+    // Handle legacy fields first
+    let headerNama = "";
     let keteranganNama = "";
-    let pekerjaan = item.pekerjaan || "";
+    let pekerjaan = "";
     let jenisPekerjaan = "";
-    let elemenPekerjaan = item.elemenPekerjaan || "";
+    let elemenPekerjaan = "";
     let sudutPukul = "";
-    let lokasi = item.lokasi || "";
+    let lokasi = "";
+    let waktuLabel = "";
 
-    if (Array.isArray(item.answers)) {
+    // Check if this is a legacy record (no answers array)
+    const isLegacyFormat = !Array.isArray(item.answers) || item.answers.length === 0;
+
+    // Handle legacy fields first
+    headerNama = item.nama || "Tanpa Nama";
+    lokasi = item.lokasi || "Lokasi tidak diisi";
+    
+    // Handle legacy pekerjaan fields based on stage
+    if (isStage4) {
+      // For stage 4, prioritize hammer test specific fields
+      pekerjaan = item.kodeBendaUji || item.kode_benda_uji || item.pekerjaan || "Tidak ada kode";
+      jenisPekerjaan = item.mutuBeton || item.mutu_beton || "Tidak ada mutu";
+      elemenPekerjaan = item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan || "Tidak ada elemen";
+      sudutPukul = "Tidak ada data sudut";
+    } else {
+      // For other stages
+      pekerjaan = item.pekerjaan || "Tidak ada pekerjaan";
+      jenisPekerjaan = item.jenisPekerjaan || pekerjaan;
+      elemenPekerjaan = item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan || "-";
+    }
+    
+    // Handle legacy date/time
+    waktuLabel = [
+      item.tanggal || "",
+      item.jam || ""
+    ].filter(Boolean).join(" ") || "Waktu tidak tercatat";
+      
+    // Process answers if available
+    const processedAnswers = new Set(); // Track processed fields to avoid duplicates
+
+    if (!isLegacyFormat && Array.isArray(item.answers)) {
       item.answers.forEach((answer) => {
         if (!answer || typeof answer.label !== "string") return;
-        const label = answer.label.toLowerCase();
+
+        const label = answer.label.toLowerCase().trim();
         const type = String(answer.type || "").toLowerCase();
-        const value = answer.value != null ? String(answer.value) : "";
+        const value = answer.value != null ? String(answer.value).trim() : "";
+        if (!value) return; // Skip empty values
 
-        if (type === "text") {
-          const isKeteranganNama = label.includes("keterangan") && label.includes("nama");
-          const isNamaPetugas = label.includes("nama") && label.includes("petugas") && !label.includes("keterangan");
-
-          if (isKeteranganNama) {
+        // Nama Petugas Processing
+        if (type === "text" && !processedAnswers.has("nama")) {
+          if (label.includes("keterangan") && label.includes("nama")) {
             keteranganNama = value;
-            return;
-          }
-
-          if (!headerNama && (isNamaPetugas || label.includes("nama"))) {
-            headerNama = value;
+            processedAnswers.add("keteranganNama");
+          } else if ((label.includes("nama") && label.includes("petugas")) || label.includes("nama")) {
+            if (!headerNama) { // Only set if not already set
+              headerNama = value;
+              processedAnswers.add("nama");
+            }
           }
         }
 
-        if (type === "text" && label.includes("pekerjaan")) {
-          if (label.includes("jenis")) {
-            jenisPekerjaan = value;
-          } else if (label.includes("elemen")) {
-            elemenPekerjaan = value;
+        // Pekerjaan Processing
+        if (type === "text" && !processedAnswers.has("pekerjaan")) {
+          if (isStage4) {
+            if (label.includes("kode") && label.includes("benda")) {
+              pekerjaan = value;
+              processedAnswers.add("pekerjaan");
+            } else if (label.includes("mutu") && label.includes("beton")) {
+              jenisPekerjaan = value;
+              processedAnswers.add("jenisPekerjaan");
+            } else if (label.includes("sudut") && label.includes("pukul")) {
+              sudutPukul = value;
+              processedAnswers.add("sudutPukul");
+            }
           } else {
-            pekerjaan = value;
+            if (label.includes("pekerjaan")) {
+              if (label.includes("jenis")) {
+                jenisPekerjaan = value;
+                processedAnswers.add("jenisPekerjaan");
+              } else if (label.includes("elemen")) {
+                elemenPekerjaan = value;
+                processedAnswers.add("elemenPekerjaan");
+              } else {
+                pekerjaan = value;
+                processedAnswers.add("pekerjaan");
+              }
+            }
           }
         }
 
-        // For stage 4 specific fields
-        if (isStage4) {
-          if (type === "text" && label.includes("kode") && label.includes("benda")) {
-            pekerjaan = value; // Map to pekerjaanLabel for display
+        // Lokasi Processing
+        if (type === "text" && !processedAnswers.has("lokasi")) {
+          if (label.includes("lokasi") || label.includes("alamat") || label.includes("tempat")) {
+            lokasi = value;
+            processedAnswers.add("lokasi");
           }
-          if (type === "text" && label.includes("mutu") && label.includes("beton")) {
-            jenisPekerjaan = value; // Map to jenisPekerjaanLabel for display
-          }
-          if (type === "text" && label.includes("sudut") && label.includes("pukul")) {
-            sudutPukul = value; // Map to sudutPukulLabel for display
-          }
-        }
-
-        if (!lokasi && type === "text" && (label.includes("lokasi") || label.includes("alamat"))) {
-          lokasi = value;
         }
       });
     }
 
-    if (!jenisPekerjaan) jenisPekerjaan = pekerjaan;
-    if (!headerNama) headerNama = item.nama || keteranganNama || "";
+    // Legacy field fallbacks
+    if (!headerNama && item.nama) headerNama = item.nama;
+    if (!pekerjaan && item.pekerjaan) pekerjaan = item.pekerjaan;
+    if (!elemenPekerjaan) {
+      if (item.elemenPekerjaan) elemenPekerjaan = item.elemenPekerjaan;
+      else if (item.elementPekerjaan) elemenPekerjaan = item.elementPekerjaan;
+      else if (item.elemen_pekerjaan) elemenPekerjaan = item.elemen_pekerjaan;
+    }
+    if (!lokasi && item.lokasi) lokasi = item.lokasi;
 
-    const waktuLabel = [item.tanggal || "", item.jam || ""].filter(Boolean).join(" ");
+    // Final data normalization for both legacy and new format
+    // If we have values from answers array but some are missing, use legacy fields as fallback
+    if (!headerNama) headerNama = item.nama || keteranganNama || "Tanpa Nama";
+    if (!lokasi) lokasi = item.lokasi || item.alamat || "Lokasi tidak diisi";
+    if (!pekerjaan) {
+      if (isStage4) {
+        pekerjaan = item.kodeBendaUji || item.kode_benda_uji || item.pekerjaan || "Tidak ada kode benda uji";
+      } else {
+        pekerjaan = item.pekerjaan || "Pekerjaan tidak diisi";
+      }
+    }
+    
+    // Handle jenis pekerjaan
+    if (!jenisPekerjaan) {
+      if (isStage4) {
+        jenisPekerjaan = item.mutuBeton || item.mutu_beton || "Mutu beton tidak diisi";
+      } else {
+        jenisPekerjaan = pekerjaan;
+      }
+    }
+
+    // Handle elemen pekerjaan with all possible field names
+    if (!elemenPekerjaan) {
+      elemenPekerjaan = item.elemenPekerjaan || 
+                        item.elementPekerjaan || 
+                        item.elemen_pekerjaan ||
+                        (isStage4 ? "Elemen tidak diisi" : "-");
+    }
+
+    // Special handling for Stage 4
+    if (isStage4) {
+      if (!sudutPukul) sudutPukul = "Sudut pukul tidak diisi";
+    }
+
+    // Format waktu dengan konsisten
+    waktuLabel = (() => {
+      const tanggal = item.tanggal ? item.tanggal.trim() : "";
+      const jam = item.jam ? item.jam.trim() : "";
+      return [tanggal, jam].filter(Boolean).join(" ") || "Waktu tidak tercatat";
+    })();
+    
+    // Hitung jumlah foto
     const fotoCount = Array.isArray(item.answers)
-      ? item.answers.filter((a) => String(a.type || "").toLowerCase() === "photo" && a.value).length
+      ? item.answers.filter((a) => 
+          String(a.type || "").toLowerCase() === "photo" && 
+          a.value && 
+          typeof a.value === "string" && 
+          a.value.trim().length > 0
+        ).length
       : 0;
 
     return {
@@ -620,6 +717,86 @@ export default function StageReportListClient({ stage }: { stage: number | strin
     const start = (page - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
   }, [filtered, page]);
+
+  // Helper to normalize answers for display in the detail modal.
+  // Some legacy records store many fields inside a single text answer ("Nama: X\nLokasi: Y\n...").
+  // This attempts to split and turn them into pseudo-answers for consistent UI rendering.
+  interface Answer {
+    label: string;
+    type: string;
+    value: any;
+  }
+
+  const prepareDisplayAnswers = (item: any): Answer[] => {
+    if (!item) return [];
+
+    // Legacy record handling - create pseudo-answers from fields
+    const isLegacyFormat = !Array.isArray(item.answers) || item.answers.length === 0;
+    if (isLegacyFormat) {
+      const pseudoAnswers: Answer[] = [];
+      
+      // Add legacy fields as answers
+      if (item.nama) {
+        pseudoAnswers.push({ label: "Nama", type: "text", value: item.nama });
+      }
+      if (item.lokasi) {
+        pseudoAnswers.push({ label: "Lokasi", type: "text", value: item.lokasi });
+      }
+      if (item.pekerjaan) {
+        pseudoAnswers.push({ label: "Pekerjaan", type: "text", value: item.pekerjaan });
+      }
+      if (item.jenisPekerjaan) {
+        pseudoAnswers.push({ label: "Jenis Pekerjaan", type: "text", value: item.jenisPekerjaan });
+      }
+      if (item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan) {
+        pseudoAnswers.push({ 
+          label: "Elemen Pekerjaan", 
+          type: "text", 
+          value: item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan 
+        });
+      }
+      if (item.tanggal) {
+        pseudoAnswers.push({ label: "Tanggal", type: "text", value: item.tanggal });
+      }
+      if (item.fotoWajibName) {
+        pseudoAnswers.push({ label: "Foto Wajib", type: "photo", value: item.fotoWajibName });
+      }
+      if (item.fotoOpsionalName) {
+        pseudoAnswers.push({ label: "Foto Opsional", type: "photo", value: item.fotoOpsionalName });
+      }
+      
+      return pseudoAnswers;
+    }
+
+    const answers = Array.isArray(item.answers) ? [...item.answers] : [];
+
+    // If there's a single text answer that looks like a packed multi-line form, try to parse it.
+    if (answers.length === 1 && typeof answers[0]?.value === "string") {
+      const text = answers[0].value.trim();
+      // Heuristic: contains newlines and colons like "Label: Value"
+      if (text.includes("\n") && text.includes(":")) {
+        const lines = text.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
+        const parsed = lines.map((l: string) => {
+          const idx = l.indexOf(":");
+          if (idx > 0) {
+            const label = l.slice(0, idx).trim();
+            const value = l.slice(idx + 1).trim();
+            return { label, type: "text", value };
+          }
+          return { label: "", type: "text", value: l };
+        });
+        return parsed;
+      }
+    }
+
+    // Otherwise, return answers but filter out empty values for cleaner display.
+    return answers.filter((a) => {
+      if (!a) return false;
+      if (String(a.type || "").toLowerCase() === "photo") return true;
+      const v = a.value == null ? "" : String(a.value);
+      return v.trim().length > 0;
+    });
+  };
 
   const showDeleteAlert = (item: Item) => {
     setItemToDelete(item);
@@ -747,6 +924,8 @@ export default function StageReportListClient({ stage }: { stage: number | strin
     URL.revokeObjectURL(url);
   };
 
+  const displayAnswersForSelected = selected ? prepareDisplayAnswers(selected) : [];
+
   return (
     <div className="space-y-4">
       {/* Title */}
@@ -838,7 +1017,23 @@ export default function StageReportListClient({ stage }: { stage: number | strin
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setSelected(item)}
+                    onClick={() => {
+                      try {
+                        const enriched = enrichItem(item);
+                        // If item looks like legacy (no answers) and is older than 2023-10-19, log raw data for debugging
+                        const createdMs = getCreatedAtMilliseconds(item.createdAt ?? null) ?? 0;
+                        const legacyThreshold = new Date("2023-10-19").getTime();
+                        if ((!(item.answers && item.answers.length > 0)) && createdMs && createdMs < legacyThreshold) {
+                          console.warn("Legacy empty answers detected - raw item:", item);
+                          console.warn("Enriched item:", enriched);
+                        }
+                        setSelected(enriched as any);
+                      } catch (e) {
+                        // Fallback: still set the original item to avoid breaking UI
+                        console.error("Error enriching item for detail view:", e);
+                        setSelected(item);
+                      }
+                    }}
                     className="inline-flex items-center gap-2 rounded-full border border-neutral-300 px-4 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
@@ -846,29 +1041,33 @@ export default function StageReportListClient({ stage }: { stage: number | strin
                     </svg>
                     Detail
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditItem(item);
-                      populateEditFields(item);
-                    }}
-                    className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-                    </svg>
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => showDeleteAlert(item)}
-                    className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-medium text-white hover:bg-red-600 transition-colors"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Hapus
-                  </button>
+                  {!readOnly && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditItem(item);
+                          populateEditFields(item);
+                        }}
+                        className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                          <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                        </svg>
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => showDeleteAlert(item)}
+                        className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-medium text-white hover:bg-red-600 transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                          <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Hapus
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1059,48 +1258,35 @@ export default function StageReportListClient({ stage }: { stage: number | strin
             className="relative w-full max-w-7xl max-h-[90vh] overflow-hidden mx-4 animate-in slide-in-from-bottom-4 duration-500 transform-gpu animate-in zoom-in-98 fade-in duration-400 delay-100"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Fixed close button: always visible in viewport even when modal is clipped */}
+            <button
+              onClick={() => setSelected(null)}
+              aria-label="Tutup"
+              title="Tutup"
+              className="fixed top-4 right-4 z-60 flex items-center justify-center w-10 h-10 rounded-md bg-white text-gray-600 shadow-md hover:bg-gray-100 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
             <div className="bg-white rounded-3xl shadow-2xl ring-1 ring-neutral-200 overflow-hidden transform-gpu">
-
-              {/* Professional Header */}
-              <div className="bg-gradient-to-br from-slate-50 to-gray-100 border-b border-gray-200 px-6 py-5">
+              
+              {/* Simple Header with X button */}
+              <div className="bg-white border-b border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg">
-                      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
-                        <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-900">Detail Laporan</h2>
-                      <p className="text-sm text-gray-500 font-medium">Tahap {stage} - ID: {selected.id.slice(0, 8)}...</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => {
-                        if (!selected) return;
-                        populateEditFields(selected);
-                        setEditItem(selected);
-                        setSelected(null);
-                      }}
-                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 border border-transparent rounded-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                        <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                      </svg>
-                      Edit Data
-                    </button>
-                    <button
-                      onClick={() => setSelected(null)}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200"
-                      aria-label="Tutup"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
-                  </div>
+                  <h2 className="text-lg font-medium text-gray-900">
+                    Detail Data - {selected.tanggal || (selected as any).waktuLabel || "-"}
+                  </h2>
+                  <button
+                    onClick={() => setSelected(null)}
+                    className="ml-auto flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    title="Tutup"
+                    aria-label="Tutup"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
                 </div>
               </div>
 
@@ -1132,7 +1318,7 @@ export default function StageReportListClient({ stage }: { stage: number | strin
                       </div>
                       <div>
                         <div className="text-xs text-blue-600 font-medium">Tanggal Laporan</div>
-                        <div className="text-sm font-semibold text-blue-800">{selected.tanggal || "-"}</div>
+                        <div className="text-sm font-semibold text-blue-800">{(selected as any).waktuLabel || selected.tanggal || "-"}</div>
                       </div>
                     </div>
                   </div>
@@ -1146,7 +1332,7 @@ export default function StageReportListClient({ stage }: { stage: number | strin
                       </div>
                       <div>
                         <div className="text-xs text-purple-600 font-medium">Waktu Laporan</div>
-                        <div className="text-sm font-semibold text-purple-800">{selected.jam || "00:00:00"}</div>
+                        <div className="text-sm font-semibold text-purple-800">{selected.jam || (selected as any).waktuLabel || "00:00:00"}</div>
                       </div>
                     </div>
                   </div>
@@ -1160,7 +1346,7 @@ export default function StageReportListClient({ stage }: { stage: number | strin
                     <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Informasi Lokasi</h3>
 
                     <div className="space-y-3">
-                      {selected.alamat && (
+                      {(selected.alamat || (selected as any).lokasiLabel) && (
                         <div className="bg-gray-50 rounded-xl p-4">
                           <div className="flex items-start gap-3">
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700 flex-shrink-0 mt-0.5">
@@ -1171,7 +1357,7 @@ export default function StageReportListClient({ stage }: { stage: number | strin
                             </div>
                             <div>
                               <div className="text-sm font-medium text-gray-900 mb-1">Lokasi Proyek</div>
-                              <div className="text-sm text-gray-600 leading-relaxed">{selected.alamat}</div>
+                              <div className="text-sm text-gray-600 leading-relaxed">{selected.alamat || (selected as any).lokasiLabel}</div>
                             </div>
                           </div>
                         </div>
@@ -1203,8 +1389,8 @@ export default function StageReportListClient({ stage }: { stage: number | strin
                     <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Data Laporan</h3>
 
                     <div className="grid gap-3">
-                      {Array.isArray(selected.answers) && selected.answers.length > 0 ? (
-                        selected.answers.map((a, idx) => (
+                      {displayAnswersForSelected?.length > 0 ? (
+                        displayAnswersForSelected.map((a: Answer, idx: number) => (
                           <div key={idx} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
@@ -1243,29 +1429,29 @@ export default function StageReportListClient({ stage }: { stage: number | strin
                         ))
                       ) : (
                         <>
-                          {selected.nama && (
+                          {( (selected as any).namaPetugasLabel || (selected as any).displayName ) && (
                             <div className="bg-white border border-gray-200 rounded-xl p-4">
                               <div className="text-sm font-medium text-gray-900 mb-2">Nama Petugas</div>
                               <div className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
-                                {selected.nama}
+                                {(selected as any).namaPetugasLabel || (selected as any).displayName}
                               </div>
                             </div>
                           )}
 
-                          {selected.lokasi && (
+                          {( (selected as any).lokasiLabel || selected.lokasi || selected.alamat ) && (
                             <div className="bg-white border border-gray-200 rounded-xl p-4">
                               <div className="text-sm font-medium text-gray-900 mb-2">Lokasi Proyek</div>
                               <div className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
-                                {selected.lokasi}
+                                {(selected as any).lokasiLabel || selected.lokasi || selected.alamat}
                               </div>
                             </div>
                           )}
 
-                          {selected.pekerjaan && (
+                          {( (selected as any).pekerjaanLabel || (selected as any).pekerjaanLabel || selected.pekerjaan ) && (
                             <div className="bg-white border border-gray-200 rounded-xl p-4">
                               <div className="text-sm font-medium text-gray-900 mb-2">Jenis Pekerjaan</div>
                               <div className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
-                                {selected.pekerjaan}
+                                {(selected as any).pekerjaanLabel || selected.pekerjaan}
                               </div>
                             </div>
                           )}
@@ -1286,17 +1472,19 @@ export default function StageReportListClient({ stage }: { stage: number | strin
                 </div>
 
                 {/* Footer Actions */}
-                <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
-                  <button
-                    onClick={() => showDeleteAlert(selected)}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Hapus Laporan
-                  </button>
-                </div>
+                {!readOnly && (
+                  <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
+                    <button
+                      onClick={() => showDeleteAlert(selected)}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Hapus Laporan
+                    </button>
+                  </div>
+                )}
 
               </div>
             </div>
@@ -1390,7 +1578,7 @@ export default function StageReportListClient({ stage }: { stage: number | strin
       )}
 
       {/* Professional Edit Modal */}
-      {editItem && (
+      {editItem && !readOnly && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
           {/* Enhanced Backdrop */}
           <div
