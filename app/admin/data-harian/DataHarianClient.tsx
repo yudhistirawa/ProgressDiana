@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { getFirebaseClient } from "@/lib/firebaseClient";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 interface DailyData {
   tanggal: string;
@@ -17,6 +17,12 @@ export default function DataHarianClient() {
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [filterMonth, setFilterMonth] = useState<string>("");
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [newDate, setNewDate] = useState("");
+  const [newTime, setNewTime] = useState("");
+  const [newCatatan, setNewCatatan] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
   const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
 
   useEffect(() => {
@@ -139,6 +145,46 @@ export default function DataHarianClient() {
   function closeModal() {
     setSelectedDate(null);
     setSelectedItems([]);
+  }
+
+  function openEditModal(item: any) {
+    setEditingItem(item);
+    // Inisialisasi form dengan data yang ada
+    // 'normalizedTanggal' sudah dalam format YYYY-MM-DD
+    setNewDate(item.normalizedTanggal || new Date().toISOString().split('T')[0]);
+    // 'jam' bisa dalam format hh.mm.ss atau hh:mm:ss, kita normalkan ke hh:mm
+    const currentTime = item.jam ? item.jam.replace(/\./g, ':').substring(0, 5) : new Date().toTimeString().substring(0, 5);
+    setNewTime(currentTime);
+    setNewCatatan(item.catatan_admin || "");
+  }
+
+  async function handleSaveChanges() {
+    if (!editingItem || !newDate || !newTime) return;
+
+    setIsSaving(true);
+    try {
+      const fb = getFirebaseClient();
+      if (!fb) throw new Error("Firebase not initialized");
+
+      const docRef = doc(fb.db, "Progress_Diana", editingItem.id);
+      await updateDoc(docRef, {
+        tanggal: newDate, // Simpan dalam format YYYY-MM-DD
+        jam: newTime.includes(':') ? newTime.replace(/:/g, '.') + '.00' : newTime, // Simpan dalam format hh.mm.ss
+        catatan_admin: newCatatan,
+        updatedAt: serverTimestamp(),
+      });
+
+      alert("Perubahan berhasil disimpan!");
+      setEditingItem(null);
+      // Muat ulang semua data untuk merefleksikan perubahan
+      await loadDailyData();
+      closeModal(); // Tutup juga modal detail
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      alert("Gagal menyimpan perubahan.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   // Preserve page scroll position when modal opens so closing it doesn't jump page to top
@@ -314,12 +360,12 @@ export default function DataHarianClient() {
       {selectedDate && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto">
     <div className="relative w-full max-w-5xl my-8 rounded-2xl bg-white shadow-xl max-h-[calc(100vh-4rem)] overflow-y-auto">
-            {/* Fixed close button to ensure visibility when header is clipped */}
+            {/* Absolute close button relative to the modal container */}
             <button
               onClick={closeModal}
               aria-label="Tutup"
               title="Tutup"
-              className="fixed top-4 right-4 z-60 flex items-center justify-center w-10 h-10 rounded-md bg-white text-gray-600 shadow-md hover:bg-gray-100 transition-colors"
+              className="absolute top-2 right-2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-white/80 text-gray-600 shadow-md hover:bg-gray-100 transition-colors backdrop-blur-sm"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
@@ -367,6 +413,12 @@ export default function DataHarianClient() {
                             Tahap {item.stage}
                           </span>
                         )}
+                        <button
+                          onClick={() => openEditModal(item)}
+                          className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-xs font-semibold hover:bg-blue-200"
+                        >
+                          Edit
+                        </button>
                       </div>
                       <div className="text-right">
                         <div className="text-xs text-neutral-500">Waktu Upload</div>
@@ -563,6 +615,68 @@ export default function DataHarianClient() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingItem && (
+        <div className="fixed inset-0 z-[51] flex items-center justify-center bg-black/60 p-4">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-center">Edit Laporan</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="edit-tanggal" className="block text-sm font-medium text-neutral-700 mb-1">
+                  Ubah Tanggal
+                </label>
+                <input
+                  id="edit-tanggal"
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                />
+              </div>
+              <div>
+                <label htmlFor="edit-jam" className="block text-sm font-medium text-neutral-700 mb-1">
+                  Ubah Waktu
+                </label>
+                <input
+                  id="edit-jam"
+                  type="time"
+                  value={newTime}
+                  onChange={(e) => setNewTime(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                />
+              </div>
+            </div>
+             <p className="text-xs text-neutral-500 -mt-2">
+                Mengubah tanggal akan memindahkan laporan ini ke grup tanggal yang baru.
+              </p>
+            <div>
+              <label htmlFor="edit-catatan" className="block text-sm font-medium text-neutral-700 mb-1">
+                Catatan Admin
+              </label>
+              <textarea
+                id="edit-catatan"
+                rows={3}
+                value={newCatatan}
+                onChange={(e) => setNewCatatan(e.target.value)}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                placeholder="Tambahkan catatan untuk laporan ini..."
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
+              <button
+                onClick={() => setEditingItem(null)}
+                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50"
+              >
+                Batal
+              </button>
+              <button onClick={handleSaveChanges} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-neutral-400">
+                {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+              </button>
             </div>
           </div>
         </div>
