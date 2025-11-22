@@ -1,13 +1,13 @@
+"use client";
+
 import Link from "next/link";
-import AvatarMenuClient from "../components/AvatarMenuClient";
+import { useState } from "react";
+import AvatarMenuClient from "@/app/admin/components/AvatarMenuClient";
 import DataHarianClient from "./DataHarianClient";
 
-export const metadata = {
-  title: "Data Masuk Harian - Admin",
-  description: "Lihat statistik data yang masuk per hari",
-};
-
 export default function DataHarianPage() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       {/* Decorative background */}
@@ -27,11 +27,21 @@ export default function DataHarianPage() {
       {/* Topbar */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 grid grid-cols-12 items-center gap-3">
-          <div className="col-span-12 sm:col-span-3 flex items-center gap-2">
+          <div className="col-span-6 sm:col-span-3 flex items-center gap-2">
+            {/* Tombol Menu Mobile */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="sm:hidden inline-flex items-center justify-center h-8 w-8 rounded-lg text-neutral-600 hover:bg-neutral-100"
+              aria-label="Buka menu"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                <path d="M3 6a1 1 0 011-1h16a1 1 0 110 2H4a1 1 0 01-1-1zM3 12a1 1 0 011-1h16a1 1 0 110 2H4a1 1 0 01-1-1zM4 17a1 1 0 100 2h16a1 1 0 100-2H4z" />
+              </svg>
+            </button>
             <div className="text-sm sm:text-base font-semibold tracking-wide">Data Masuk Harian</div>
           </div>
-          <div className="col-span-12 sm:col-span-6" />
-          <div className="col-span-12 sm:col-span-3 flex items-center justify-end gap-2">
+          <div className="hidden sm:block sm:col-span-6" />
+          <div className="col-span-6 sm:col-span-3 flex items-center justify-end gap-2">
             <AvatarMenuClient />
           </div>
         </div>
@@ -39,8 +49,22 @@ export default function DataHarianPage() {
 
       <div className="mx-auto max-w-6xl grid grid-cols-12 gap-4 px-4 py-6">
         {/* Sidebar */}
-        <aside className="col-span-12 sm:col-span-3 lg:col-span-3">
-          <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden sm:sticky sm:top-24">
+        {/* Backdrop untuk mobile */}
+        {isSidebarOpen && (
+          <div
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm sm:hidden"
+            aria-hidden="true"
+          />
+        )}
+        <aside
+          className={`
+            fixed sm:relative inset-y-0 left-0 z-40 w-64 sm:w-auto
+            col-span-12 sm:col-span-3 lg:col-span-3
+            transform transition-transform duration-300 ease-in-out
+            ${isSidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"}
+          `}>
+          <div className="h-full rounded-r-2xl sm:rounded-2xl ring-1 ring-neutral-200 bg-white shadow-lg sm:shadow-sm overflow-hidden sm:sticky sm:top-24">
             <div className="px-4 py-2 border-b border-neutral-200 text-sm font-semibold">Menu</div>
             <nav className="p-3 grid gap-2 text-sm">
               <Link href="/admin/dashboard" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Home</Link>

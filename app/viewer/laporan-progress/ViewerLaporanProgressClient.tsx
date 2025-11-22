@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { getFirebaseClient } from "@/lib/firebaseClient";
@@ -188,20 +189,22 @@ export default function ViewerLaporanProgressClient() {
             const totalItems = data?.totalItems || 0;
             const title = stageTitles[stageNumber] || `Tahap ${stageNumber}`;
             return (
-              <div key={stageNumber} className="group block rounded-2xl bg-white p-6 shadow-lg ring-1 ring-neutral-200/50 hover:ring-red-400 transition-all duration-300 ease-in-out transform hover:-translate-y-1">
-                <div className="flex items-start justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-red-600">
-                    <span className="text-2xl font-bold">{stageNumber}</span>
+              <Link key={stageNumber} href={`/viewer/laporan-progress/${stageNumber}`} className="group block rounded-2xl bg-white p-6 shadow-lg ring-1 ring-neutral-200/50 hover:ring-red-400 transition-all duration-300 ease-in-out transform hover:-translate-y-1">
+                <div>
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                      <span className="text-2xl font-bold">{stageNumber}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-neutral-900">{totalItems}</p>
+                      <p className="text-sm text-neutral-500">Laporan</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-neutral-900">{totalItems}</p>
-                    <p className="text-sm text-neutral-500">Laporan</p>
+                  <div className="mt-4">
+                    <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
-                </div>
-              </div>
+              </Link>
             );
           })}
         </div>

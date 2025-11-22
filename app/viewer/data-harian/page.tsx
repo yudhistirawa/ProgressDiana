@@ -25,7 +25,7 @@ export default function ViewerDataHarianPage() {
       </header>
 
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-4" style={{ height: 'calc(100vh - 65px)' }}>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-4" style={{ minHeight: 'calc(100vh - 65px)' }}>
         <ViewerDataHarianClient />
       </main>
     </div>

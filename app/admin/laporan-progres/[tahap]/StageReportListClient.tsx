@@ -641,7 +641,11 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
     try {
       const { collection, query, where, orderBy, getDocs, onSnapshot } = await import("firebase/firestore");
       const col = collection(fb.db, "Progress_Diana");
-      const q = query(col, where("stage", "==", stage));
+      // Query for both number and string type for stage to handle data inconsistency
+      const q = query(col, where("stage", "in", [
+        stage, // string type from URL param
+        Number(stage) // number type
+      ]));
 
       // Use onSnapshot for real-time updates
       const unsubscribe = onSnapshot(q, (snap) => {
@@ -1242,7 +1246,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
       {/* Modern Detail Modal */}
       {selected && (
-        <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[75] flex items-start justify-center p-4 pt-8 animate-in fade-in duration-300 overflow-y-auto">
           {/* Backdrop with blur */}
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
@@ -1255,7 +1259,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
             role="dialog"
             aria-modal="true"
             tabIndex={-1}
-            className="relative w-full max-w-7xl max-h-[90vh] overflow-hidden mx-4 animate-in slide-in-from-bottom-4 duration-500 transform-gpu animate-in zoom-in-98 fade-in duration-400 delay-100"
+            className="relative w-full max-w-7xl max-h-[calc(100vh-4rem)] overflow-hidden mx-4 animate-in slide-in-from-bottom-4 duration-500 transform-gpu animate-in zoom-in-98 fade-in duration-400 delay-100"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Fixed close button: always visible in viewport even when modal is clipped */}
@@ -1579,7 +1583,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
       {/* Professional Edit Modal */}
       {editItem && !readOnly && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] flex items-start justify-center p-4 pt-8 overflow-y-auto">
           {/* Enhanced Backdrop */}
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -1592,7 +1596,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
             role="dialog"
             aria-modal="true"
             tabIndex={-1}
-            className="relative w-full max-w-7xl max-h-[90vh] overflow-hidden mx-4"
+            className="relative w-full max-w-7xl max-h-[calc(100vh-4rem)] overflow-hidden mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
@@ -1625,7 +1629,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
               </div>
 
               {/* Professional Content */}
-              <div className="max-h-[85vh] overflow-y-auto px-8 py-6">
+              <div className="max-h-[calc(100vh-12rem)] overflow-y-auto px-8 py-6">
 
                 {/* Status & Meta Info */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
