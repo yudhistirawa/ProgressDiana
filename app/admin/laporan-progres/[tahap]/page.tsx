@@ -2,15 +2,17 @@ import Link from "next/link";
 import AvatarMenuClient from "../../components/AvatarMenuClient";
 import StageReportListClient from "./StageReportListClient";
 
-type Props = { params: Promise<{ tahap: string }> };
+type Props = { params: Promise<{ tahap: string }>; searchParams?: Promise<{ project?: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { tahap } = await params;
   return { title: `Tahap ${tahap} - Laporan Progres (Admin)` };
 }
 
-export default async function AdminTahapPage({ params }: Props) {
+export default async function AdminTahapPage({ params, searchParams }: Props) {
   const { tahap } = await params;
+  const sp = searchParams ? await searchParams : undefined;
+  const projectParam = sp?.project === "bungtomo" ? "bungtomo" : "diana";
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       {/* Decorative background */}
@@ -66,7 +68,7 @@ export default async function AdminTahapPage({ params }: Props) {
 
         {/* Content */}
         <main className="col-span-12 sm:col-span-9 space-y-4">
-          <StageReportListClient stage={Number(tahap)} />
+          <StageReportListClient stage={Number(tahap)} project={projectParam} />
         </main>
       </div>
     </div>

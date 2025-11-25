@@ -7,9 +7,10 @@ export const metadata = {
   description: "Lihat riwayat laporan progres per tahap",
 };
 
-// Items are loaded from localStorage stages_config (client)
+type Props = { searchParams?: { project?: string } };
 
-export default function RiwayatLaporan() {
+export default function RiwayatLaporan({ searchParams }: Props) {
+  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : "diana";
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       {/* Decorative background - desktop/tablet */}
@@ -60,6 +61,9 @@ export default function RiwayatLaporan() {
 
       {/* Content */}
       <main className="mx-auto max-w-4xl px-3 sm:px-4 pb-20 pt-5">
+        <div className="mb-3 text-xs text-neutral-600">
+          Proyek aktif: <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">{projectParam === "bungtomo" ? "Bung Tomo" : "Diana"}</span>
+        </div>
         <Suspense fallback={
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
             {[...Array(6)].map((_, i) => (
@@ -70,7 +74,7 @@ export default function RiwayatLaporan() {
             ))}
           </div>
         }>
-          <HistoryStagesClient />
+          <HistoryStagesClient project={projectParam} />
         </Suspense>
       </main>
 
@@ -83,7 +87,7 @@ export default function RiwayatLaporan() {
             </svg>
             <span>Beranda</span>
           </Link>
-          <Link href="/dashboard/riwayat-laporan" className="flex flex-col items-center justify-center h-14 text-neutral-900 gap-0.5">
+          <Link href={`/dashboard/riwayat-laporan?project=${projectParam}`} className="flex flex-col items-center justify-center h-14 text-neutral-900 gap-0.5">
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
               <path d="M7 4h10a2 2 0 0 1 2 2v14l-5-2-5 2V6a2 2 0 0 1 2-2Z" />
             </svg>

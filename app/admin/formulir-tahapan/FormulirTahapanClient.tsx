@@ -13,9 +13,13 @@ type AlertState = {
   show: boolean;
 };
 
-const KEY = "stages_config";
+type ProjectKey = "diana" | "bungtomo";
+const CONFIG_KEYS: Record<ProjectKey, string> = {
+  diana: "stages_config",
+  bungtomo: "stages_config_bungtomo",
+};
 
-function useStages() {
+function useStages(project: ProjectKey) {
   const [stages, setStages] = useState<Stage[]>([]);
   // Load from Firestore only
   useEffect(() => {
@@ -23,7 +27,7 @@ function useStages() {
     if (!fb) return;
     (async () => {
       try {
-        const ref = doc(fb.db, "config", KEY);
+        const ref = doc(fb.db, "config", CONFIG_KEYS[project]);
         const snap = await getDoc(ref);
         const list = snap.exists() ? (snap.data()?.list as Stage[] | undefined) : undefined;
         setStages(Array.isArray(list) ? list : []);
@@ -31,20 +35,21 @@ function useStages() {
         setStages([]);
       }
     })();
-  }, []);
+  }, [project]);
 
   const save = (next: Stage[]) => {
     setStages(next);
     const fb = getFirebaseClient();
     if (fb) {
-      setDoc(doc(fb.db, "config", KEY), { list: next, updatedAt: Date.now() }).catch(() => {});
+      setDoc(doc(fb.db, "config", CONFIG_KEYS[project]), { list: next, updatedAt: Date.now() }).catch(() => {});
     }
   };
   return { stages, save };
 }
 
 export default function FormulirTahapanClient() {
-  const { stages, save } = useStages();
+  const [project, setProject] = useState<ProjectKey>("diana");
+  const { stages, save } = useStages(project);
   const [showForm, setShowForm] = useState<null | { id?: number }>(null);
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
@@ -106,7 +111,29 @@ export default function FormulirTahapanClient() {
 
   return (
     <div className="relative space-y-4">
-      <h2 className="text-center text-sm sm:text-base font-semibold">Daftar Tahapan & Formulir</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-sm sm:text-base font-semibold">Daftar Tahapan & Formulir</h2>
+          <p className="text-xs text-neutral-500">Form yang sudah ada saat ini milik Proyek Diana. Pilih proyek lain untuk membuat set baru.</p>
+        </div>
+        <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
+          {(["diana", "bungtomo"] as const).map((p) => {
+            const active = project === p;
+            return (
+              <button
+                key={p}
+                onClick={() => setProject(p)}
+                className={[
+                  "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all",
+                  active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white"
+                ].join(" ")}
+              >
+                {p === "diana" ? "Diana" : "Bung Tomo"}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div className="hidden sm:flex items-center justify-end pr-2 text-xs text-neutral-500">Tanggal</div>
 
       <ul className="space-y-3">

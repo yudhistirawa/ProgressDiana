@@ -7,7 +7,10 @@ export const metadata = {
   description: "Formulir pengisian laporan progres tahap 5",
 };
 
-export default function LaporanTahapLima() {
+type Props = { searchParams?: { project?: string } };
+
+export default function LaporanTahapLima({ searchParams }: Props) {
+  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : "diana";
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       <div className="pointer-events-none absolute inset-0 -z-10 hidden sm:block">
@@ -26,7 +29,7 @@ export default function LaporanTahapLima() {
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-2xl sm:max-w-3xl px-3 sm:px-4 py-3 flex items-center justify-between">
           <ConfirmNavigationButton
-            href="/dashboard/laporan-progres"
+            href={`/dashboard/laporan-progres?project=${projectParam}`}
             draftStorageKey={formStorageKey(5)}
             unsavedSessionKey={unsavedFlagKey(5)}
             confirmMessage={UNSAVED_PROGRESS_CONFIRM_MESSAGE}
@@ -57,7 +60,7 @@ export default function LaporanTahapLima() {
       </header>
 
       <main className="mx-auto max-w-2xl sm:max-w-3xl px-3 sm:px-4 py-6 sm:py-8">
-        <FormTahapSatuClient stage={5} />
+        <FormTahapSatuClient stage={5} project={projectParam} />
       </main>
     </div>
   );
