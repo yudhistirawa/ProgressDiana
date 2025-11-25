@@ -11,8 +11,6 @@ const CONFIG_KEYS: Record<ProjectKey, string> = {
   bungtomo: "stages_config_bungtomo",
 };
 
-type ProjectKey = "diana" | "bungtomo";
-
 export default function ProgressGridClient({
   query: controlledQuery,
   onQueryChange,
