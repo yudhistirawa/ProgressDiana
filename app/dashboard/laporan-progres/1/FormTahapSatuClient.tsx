@@ -320,9 +320,14 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
 }
 
-type Props = { stage?: number };
+type ProjectKey = "diana" | "bungtomo";
+type Props = { stage?: number; project?: ProjectKey };
 
-export default function FormTahapSatuClient({ stage = 1 }: Props) {
+export default function FormTahapSatuClient({ stage = 1, project = "diana" }: Props) {
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
+  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : "Progress_Diana_Notifikasi";
+  const storagePrefix = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileWajibName, setFileWajibName] = useState("");
   const [fileOpsionalName, setFileOpsionalName] = useState("");
@@ -599,7 +604,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                   const uniq = (typeof crypto !== "undefined" && (crypto as any).randomUUID)
                     ? (crypto as any).randomUUID()
                     : Math.random().toString(36).slice(2);
-                  const path = `Progress_Diana/${recId}/${i + 1}_${uniq}_${file.name}`;
+                  const path = `${storagePrefix}/${recId}/${i + 1}_${uniq}_${file.name}`;
                   const r = ref(storage, path);
                   await new Promise<void>((resolve, reject) => {
                     const task = uploadBytesResumable(r, file, { contentType: file.type || "image/webp" });
@@ -670,7 +675,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
             if (fb) {
               try {
                 const { collection, doc, setDoc, serverTimestamp } = await import("firebase/firestore");
-                const col = collection(fb.db, "Progress_Diana");
+                const col = collection(fb.db, progressCollection);
                 await setDoc(doc(col, recId), {
                   ...data,
                   // Gunakan timestamp server agar urutan konsisten di query
@@ -691,7 +696,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                   createdAt: data.createdAt,
                   read: false,
                 };
-                const notifCol = collection(fb.db, "Progress_Diana_Notifikasi");
+                const notifCol = collection(fb.db, notifCollection);
                 await setDoc(doc(notifCol, recId), {
                   ...notif,
                   ts: serverTimestamp(),

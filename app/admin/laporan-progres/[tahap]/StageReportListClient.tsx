@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getFirebaseClient } from "../../../../lib/firebaseClient";
 
+type ProjectKey = "diana" | "bungtomo";
+
 type Item = {
   id: string;
   stage?: number | string;
@@ -61,7 +63,18 @@ type EnrichedItem = Item & {
   fotoCount: number;
 };
 
-export default function StageReportListClient({ stage, readOnly }: { stage: number | string; readOnly?: boolean }) {
+export default function StageReportListClient({
+  stage,
+  readOnly,
+  project = "diana",
+}: {
+  stage: number | string;
+  readOnly?: boolean;
+  project?: ProjectKey;
+}) {
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
+  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : "Progress_Diana_Notifikasi";
   const stageNumber = Number(stage);
   const stageFilter = Number.isNaN(stageNumber) ? stage : stageNumber;
   const isStage4 = Number(stageFilter) === 4;
@@ -454,35 +467,31 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
   }, [isModalOpen]);
 
   const enrichItem = (item: Item): EnrichedItem => {
-    // Handle legacy fields first
-    let headerNama = "";
+    // Handle legacy fields first (keep empty so answers can override)
+    let headerNama = (item.nama || "").trim();
     let keteranganNama = "";
     let pekerjaan = "";
     let jenisPekerjaan = "";
     let elemenPekerjaan = "";
     let sudutPukul = "";
-    let lokasi = "";
+    let lokasi = (item.lokasi || "").trim();
     let waktuLabel = "";
 
     // Check if this is a legacy record (no answers array)
     const isLegacyFormat = !Array.isArray(item.answers) || item.answers.length === 0;
 
-    // Handle legacy fields first
-    headerNama = item.nama || "Tanpa Nama";
-    lokasi = item.lokasi || "Lokasi tidak diisi";
-    
     // Handle legacy pekerjaan fields based on stage
     if (isStage4) {
       // For stage 4, prioritize hammer test specific fields
-      pekerjaan = item.kodeBendaUji || item.kode_benda_uji || item.pekerjaan || "Tidak ada kode";
-      jenisPekerjaan = item.mutuBeton || item.mutu_beton || "Tidak ada mutu";
-      elemenPekerjaan = item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan || "Tidak ada elemen";
-      sudutPukul = "Tidak ada data sudut";
+      pekerjaan = item.kodeBendaUji || item.kode_benda_uji || item.pekerjaan || "";
+      jenisPekerjaan = item.mutuBeton || item.mutu_beton || "";
+      elemenPekerjaan = item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan || "";
+      sudutPukul = "";
     } else {
       // For other stages
-      pekerjaan = item.pekerjaan || "Tidak ada pekerjaan";
-      jenisPekerjaan = item.jenisPekerjaan || pekerjaan;
-      elemenPekerjaan = item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan || "-";
+      pekerjaan = item.pekerjaan || "";
+      jenisPekerjaan = item.jenisPekerjaan || "";
+      elemenPekerjaan = item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan || "";
     }
     
     // Handle legacy date/time
@@ -502,14 +511,22 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
         const type = String(answer.type || "").toLowerCase();
         const value = answer.value != null ? String(answer.value).trim() : "";
         if (!value) return; // Skip empty values
+        const textLike =
+          type === "text" ||
+          type === "select" ||
+          type === "dropdown" ||
+          type === "radio" ||
+          type === "choice" ||
+          type === "option";
+        const canSetHeaderNama = !headerNama || headerNama.toLowerCase() === "tanpa nama";
 
         // Nama Petugas Processing
-        if (type === "text" && !processedAnswers.has("nama")) {
+        if (textLike && !processedAnswers.has("nama")) {
           if (label.includes("keterangan") && label.includes("nama")) {
             keteranganNama = value;
             processedAnswers.add("keteranganNama");
           } else if ((label.includes("nama") && label.includes("petugas")) || label.includes("nama")) {
-            if (!headerNama) { // Only set if not already set
+            if (canSetHeaderNama) {
               headerNama = value;
               processedAnswers.add("nama");
             }
@@ -517,7 +534,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
         }
 
         // Pekerjaan Processing
-        if (type === "text" && !processedAnswers.has("pekerjaan")) {
+        if (textLike && !processedAnswers.has("pekerjaan")) {
           if (isStage4) {
             if (label.includes("kode") && label.includes("benda")) {
               pekerjaan = value;
@@ -546,7 +563,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
         }
 
         // Lokasi Processing
-        if (type === "text" && !processedAnswers.has("lokasi")) {
+        if (textLike && !processedAnswers.has("lokasi")) {
           if (label.includes("lokasi") || label.includes("alamat") || label.includes("tempat")) {
             lokasi = value;
             processedAnswers.add("lokasi");
@@ -640,8 +657,12 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
     try {
       const { collection, query, where, orderBy, getDocs, onSnapshot } = await import("firebase/firestore");
-      const col = collection(fb.db, "Progress_Diana");
-      const q = query(col, where("stage", "==", stage));
+      const col = collection(fb.db, progressCollection);
+      // Query for both number and string type for stage to handle data inconsistency
+      const q = query(col, where("stage", "in", [
+        stage, // string type from URL param
+        Number(stage) // number type
+      ]));
 
       // Use onSnapshot for real-time updates
       const unsubscribe = onSnapshot(q, (snap) => {
@@ -668,7 +689,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
     return () => {
       unsubscribe?.then(unsub => unsub?.());
     };
-  }, [stage]);
+  }, [stage, progressCollection]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -816,12 +837,12 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
     try {
       const { doc, deleteDoc } = await import("firebase/firestore");
-      const docRef = doc(fb.db, "Progress_Diana", itemToDelete.id);
+      const docRef = doc(fb.db, progressCollection, itemToDelete.id);
       await deleteDoc(docRef);
 
       // Delete notification if exists
       try {
-        const notifRef = doc(fb.db, "Progress_Diana_Notifikasi", itemToDelete.id);
+        const notifRef = doc(fb.db, notifCollection, itemToDelete.id);
         await deleteDoc(notifRef);
       } catch {}
 
@@ -1242,7 +1263,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
       {/* Modern Detail Modal */}
       {selected && (
-        <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[75] flex items-start justify-center p-4 pt-8 animate-in fade-in duration-300 overflow-y-auto">
           {/* Backdrop with blur */}
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
@@ -1255,7 +1276,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
             role="dialog"
             aria-modal="true"
             tabIndex={-1}
-            className="relative w-full max-w-7xl max-h-[90vh] overflow-hidden mx-4 animate-in slide-in-from-bottom-4 duration-500 transform-gpu animate-in zoom-in-98 fade-in duration-400 delay-100"
+            className="relative w-full max-w-7xl max-h-[calc(100vh-4rem)] overflow-hidden mx-4 animate-in slide-in-from-bottom-4 duration-500 transform-gpu animate-in zoom-in-98 fade-in duration-400 delay-100"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Fixed close button: always visible in viewport even when modal is clipped */}
@@ -1579,7 +1600,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
       {/* Professional Edit Modal */}
       {editItem && !readOnly && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] flex items-start justify-center p-4 pt-8 overflow-y-auto">
           {/* Enhanced Backdrop */}
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -1592,7 +1613,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
             role="dialog"
             aria-modal="true"
             tabIndex={-1}
-            className="relative w-full max-w-7xl max-h-[90vh] overflow-hidden mx-4"
+            className="relative w-full max-w-7xl max-h-[calc(100vh-4rem)] overflow-hidden mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
@@ -1625,7 +1646,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
               </div>
 
               {/* Professional Content */}
-              <div className="max-h-[85vh] overflow-y-auto px-8 py-6">
+              <div className="max-h-[calc(100vh-12rem)] overflow-y-auto px-8 py-6">
 
                 {/* Status & Meta Info */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1808,7 +1829,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
                         try {
                           const { doc, updateDoc } = await import("firebase/firestore");
-                          const docRef = doc(fb.db, "Progress_Diana", editItem.id);
+                          const docRef = doc(fb.db, progressCollection, editItem.id);
 
                           // Prepare update data with both legacy fields and answers array
                           const updateData: any = {
@@ -1831,7 +1852,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
                           // Update notification if exists
                           try {
-                            const notifRef = doc(fb.db, "Progress_Diana_Notifikasi", editItem.id);
+                            const notifRef = doc(fb.db, notifCollection, editItem.id);
                             const message = isStage4
                               ? `${updatedItem.pekerjaan || editItem.pekerjaan} • ${updatedItem.elemenPekerjaan || editItem.elemenPekerjaan} • ${updatedItem.lokasi || editItem.lokasi} • ${editSudutPukul || "-"}`
                               : `${updatedItem.pekerjaan || editItem.pekerjaan} • ${updatedItem.lokasi || editItem.lokasi}`;

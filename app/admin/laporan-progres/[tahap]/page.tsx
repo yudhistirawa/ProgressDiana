@@ -2,15 +2,74 @@ import Link from "next/link";
 import AvatarMenuClient from "../../components/AvatarMenuClient";
 import StageReportListClient from "./StageReportListClient";
 
-type Props = { params: Promise<{ tahap: string }> };
+type Props = { params: Promise<{ tahap: string }>; searchParams?: Promise<{ project?: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { tahap } = await params;
   return { title: `Tahap ${tahap} - Laporan Progres (Admin)` };
 }
 
-export default async function AdminTahapPage({ params }: Props) {
+export default async function AdminTahapPage({ params, searchParams }: Props) {
   const { tahap } = await params;
+  const sp = searchParams ? await searchParams : undefined;
+  const projectParam = sp?.project === "bungtomo" ? "bungtomo" : "diana";
+  const navItems = [
+    {
+      href: "/admin/dashboard",
+      label: "Home",
+      icon: (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+          <path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3L12 3Z" />
+        </svg>
+      ),
+    },
+    {
+      href: "/admin/laporan-progres",
+      label: "Laporan Progres",
+      icon: (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+          <path d="M5 3a2 2 0 0 0-2 2v14l3-3h11a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5Zm2 4h10v2H7V7Zm0 4h7v2H7v-2Z" />
+        </svg>
+      ),
+    },
+    {
+      href: "/admin/data-harian",
+      label: "Data Masuk Harian",
+      icon: (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+          <path d="M6 2a2 2 0 0 0-2 2v16h16V4a2 2 0 0 0-2-2H6Zm1 5h10v2H7V7Zm0 4h6v2H7v-2Z" />
+        </svg>
+      ),
+    },
+    {
+      href: "/admin/manajemen-pengguna",
+      label: "Manajemen Pengguna",
+      icon: (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+          <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Zm7-6h2v2h-2v-2Zm0 4h2v2h-2v-2Zm0 4h2v2h-2v-2Z" />
+        </svg>
+      ),
+    },
+    {
+      href: "/admin/formulir-tahapan",
+      label: "Kelola Formulir & Tahapan",
+      icon: (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+          <path d="M5 4a2 2 0 0 0-2 2v13l4-4h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5Zm2 4h10v2H7V8Zm0 4h6v2H7v-2Z" />
+        </svg>
+      ),
+    },
+    {
+      href: "/admin/sampah",
+      label: "Tempat Sampah",
+      icon: (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+          <path d="M9 3a1 1 0 0 0-1 1v1H4v2h16V5h-4V4a1 1 0 0 0-1-1H9Zm-4 6v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9H5Zm3 2h2v8H8v-8Zm6 0h2v8h-2v-8Z" />
+        </svg>
+      ),
+    },
+  ];
+  const activePath = "/admin/laporan-progres";
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       {/* Decorative background */}
@@ -53,20 +112,42 @@ export default async function AdminTahapPage({ params }: Props) {
       <div className="mx-auto max-w-6xl grid grid-cols-12 gap-4 px-4 py-6">
         {/* Sidebar */}
         <aside className="col-span-12 sm:col-span-3 lg:col-span-3">
-          <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-4 py-2 border-b border-neutral-200 text-sm font-semibold">Laporan Progres</div>
-            <nav className="p-3 grid gap-2 text-sm">
-              <Link href="/admin/dashboard" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Home</Link>
-              <Link href="/admin/laporan-progres" className="rounded-lg bg-red-600 text-white px-3 py-2">Laporan Progres</Link>
-              <Link href="/admin/manajemen-pengguna" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Manajemen Pengguna</Link>
-              <Link href="/admin/formulir-tahapan" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Kelola Formulir & Tahapan</Link>
+          <div className="rounded-3xl ring-1 ring-neutral-200 bg-white shadow-md overflow-hidden">
+            <div className="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
+              <div className="text-sm font-semibold text-neutral-900">Menu Utama</div>
+              <span className="text-[11px] font-semibold px-3 py-1 rounded-full bg-rose-100 text-rose-600">Admin</span>
+            </div>
+            <nav className="p-3 space-y-2 text-sm">
+              {navItems.map((item) => {
+                const isActive = item.href === activePath;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={[
+                      "flex items-center gap-3 w-full rounded-2xl px-4 py-3 transition-all",
+                      isActive
+                        ? "bg-red-600 text-white shadow-[0_10px_30px_-12px_rgba(239,68,68,0.9)] ring-1 ring-red-500"
+                        : "bg-white text-neutral-800 ring-1 ring-neutral-200 hover:bg-neutral-50"
+                    ].join(" ")}
+                  >
+                    <span className={[
+                      "flex h-8 w-8 items-center justify-center rounded-xl",
+                      isActive ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-700"
+                    ].join(" ")}>
+                      {item.icon}
+                    </span>
+                    <span className="font-medium">{item.label}</span>
+                  </Link>
+                );
+              })}
             </nav>
           </div>
         </aside>
 
         {/* Content */}
         <main className="col-span-12 sm:col-span-9 space-y-4">
-          <StageReportListClient stage={Number(tahap)} />
+          <StageReportListClient stage={Number(tahap)} project={projectParam} />
         </main>
       </div>
     </div>

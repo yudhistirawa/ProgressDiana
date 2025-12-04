@@ -17,7 +17,11 @@ type DisplayItem = {
   files?: string[];
 };
 
-export default function RiwayatTahapClient({ stage }: { stage: number }) {
+type ProjectKey = "diana" | "bungtomo";
+
+export default function RiwayatTahapClient({ stage, project = "diana" }: { stage: number; project?: ProjectKey }) {
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
   const [items, setItems] = useState<DisplayItem[]>([]);
   const [query, setQuery] = useState("");
   const [asc, setAsc] = useState(false);
@@ -35,7 +39,7 @@ export default function RiwayatTahapClient({ stage }: { stage: number }) {
 
       try {
         const { collection, query, where, orderBy, onSnapshot } = await import("firebase/firestore");
-        const col = collection(fb.db, "Progress_Diana");
+        const col = collection(fb.db, progressCollection);
         const q = query(col, where("stage", "==", stage), orderBy("createdAt", "desc"));
 
         // Use onSnapshot for real-time updates
@@ -85,7 +89,7 @@ export default function RiwayatTahapClient({ stage }: { stage: number }) {
     return () => {
       unsubscribe?.then(unsub => unsub?.());
     };
-  }, [stage]);
+  }, [stage, progressCollection]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

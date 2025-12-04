@@ -6,9 +6,10 @@ export const metadata = {
   description: "Pilih tahap untuk melihat dan mengisi laporan progres",
 };
 
-// Stages are loaded from localStorage on the client
+type Props = { searchParams?: { project?: string } };
 
-export default function LaporanProgres() {
+export default function LaporanProgres({ searchParams }: Props) {
+  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : "diana";
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       {/* Decorative background - desktop/tablet */}
@@ -61,10 +62,10 @@ export default function LaporanProgres() {
       {/* Content */}
       <main className="mx-auto max-w-4xl px-3 sm:px-4 pb-8 pt-5">
         <p className="mb-4 text-xs sm:text-sm text-neutral-600">
-          Pilih tahap untuk melihat detail progres dan mengisi laporan.
+          Pilih tahap untuk melihat detail progres dan mengisi laporan. Proyek aktif: <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">{projectParam === "diana" ? "Diana" : "Bung Tomo"}</span>
         </p>
 
-        <UserStagesClient />
+        <UserStagesClient project={projectParam} />
       </main>
     </div>
   );

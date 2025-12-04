@@ -5,13 +5,21 @@ import { getFirebaseClient } from "@/lib/firebaseClient";
 import { doc, getDoc } from "firebase/firestore";
 
 type StageItem = { id: number; title: string };
+type ProjectKey = "diana" | "bungtomo";
+const CONFIG_KEYS: Record<ProjectKey, string> = {
+  diana: "stages_config",
+  bungtomo: "stages_config_bungtomo",
+};
+
 
 export default function ProgressGridClient({
   query: controlledQuery,
   onQueryChange,
+  project = "diana",
 }: {
   query?: string;
   onQueryChange?: (v: string) => void;
+  project?: ProjectKey;
 }) {
   const [stages, setStages] = useState<StageItem[]>([]);
 
@@ -20,7 +28,7 @@ export default function ProgressGridClient({
     if (!fb) return;
     (async () => {
       try {
-        const ref = doc(fb.db, "config", "stages_config");
+        const ref = doc(fb.db, "config", CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : "diana"]);
         const snap = await getDoc(ref);
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
         const items: StageItem[] = Array.isArray(list)
@@ -31,7 +39,7 @@ export default function ProgressGridClient({
         setStages([]);
       }
     })();
-  }, []);
+  }, [project]);
 
   const [internalQuery, setInternalQuery] = useState("");
   const query = controlledQuery ?? internalQuery;
@@ -65,7 +73,7 @@ export default function ProgressGridClient({
         {filtered.map((stage) => (
           <Link
             key={stage.id}
-            href={`/admin/laporan-progres/${stage.id}`}
+            href={`/admin/laporan-progres/${stage.id}?project=${project}`}
             className="group rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 p-3 sm:p-4 text-center backdrop-blur hover:-translate-y-0.5"
           >
             <div className="mx-auto mb-3 sm:mb-4 h-14 w-14 sm:h-16 sm:w-16 rounded-xl grid place-items-center bg-gradient-to-br from-slate-50 to-slate-100 ring-1 ring-neutral-200 text-neutral-800 group-hover:scale-105 transition-transform" aria-hidden>

@@ -2,8 +2,13 @@
 import Link from "next/link";
 import LogoutLink from "@/components/LogoutLink";
 import { useRef, useState } from "react";
+import { getRole } from "@/lib/authClient";
+import { useRouter } from "next/navigation";
 
 export default function KelolaAkunPage() {
+  const role = getRole();
+  const router = useRouter();
+
   const [username, setUsername] = useState("Data Username");
   const [email, setEmail] = useState("Data Email");
   const [nama, setNama] = useState("Data Nama");
@@ -57,6 +62,12 @@ export default function KelolaAkunPage() {
       setLockUser(true);
       setLockEmail(true);
       setLockNama(true);
+      // Navigate back to appropriate dashboard based on role
+      if (role === "viewer") {
+        router.push("/viewer");
+      } else {
+        router.push("/dashboard/profil");
+      }
     }, 800);
   };
 
@@ -82,7 +93,7 @@ export default function KelolaAkunPage() {
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-6xl px-2 sm:px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Link href="/dashboard/profil" className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm" title="Kembali">
+            <Link href={role === "viewer" ? "/viewer" : role === "admin" ? "/dashboard" : "/dashboard/profil"} className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm" title="Kembali">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
                 <path d="M15 5 7 12l8 7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -129,7 +140,7 @@ export default function KelolaAkunPage() {
                   readOnly={lockUser}
                   className="w-full rounded-xl border-0 ring-1 ring-neutral-300 bg-white px-3 py-2 text-sm shadow-inner placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-300"
                 />
-                <button type="button" onClick={() => toggleAndFocus("u")} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-600 hover:text-neutral-800" title={lockUser ? "Edit" : "Kunci"}>
+                <button type="button" onClick={() => toggleAndFocus("u")} className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-neutral-600 hover:text-neutral-800 rounded cursor-pointer" title={lockUser ? "Edit" : "Kunci"}>
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z" />
                   </svg>
@@ -166,7 +177,7 @@ export default function KelolaAkunPage() {
                   readOnly={lockNama}
                   className="w-full rounded-xl border-0 ring-1 ring-neutral-300 bg-white px-3 py-2 text-sm shadow-inner placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-300"
                 />
-                <button type="button" onClick={() => toggleAndFocus("n")} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-600 hover:text-neutral-800" title={lockNama ? "Edit" : "Kunci"}>
+                <button type="button" onClick={() => toggleAndFocus("n")} className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-neutral-600 hover:text-neutral-800 rounded cursor-pointer" title={lockNama ? "Edit" : "Kunci"}>
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z" />
                   </svg>
@@ -218,13 +229,13 @@ export default function KelolaAkunPage() {
       {/* Bottom Nav (mobile only) */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur border-t border-neutral-200">
         <div className="mx-auto max-w-6xl grid grid-cols-3 text-xs">
-          <Link href="/dashboard" className="flex flex-col items-center justify-center h-14 text-neutral-700 gap-0.5">
+          <Link href={role === "viewer" ? "/viewer" : "/dashboard"} className="flex flex-col items-center justify-center h-14 text-neutral-700 gap-0.5">
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
               <path d="M12 3 3 10h3v10h5V14h2v6h5V10h3L12 3Z" />
             </svg>
             <span>Beranda</span>
           </Link>
-          <Link href="/dashboard/riwayat-laporan" className="flex flex-col items-center justify-center h-14 text-neutral-700 gap-0.5">
+          <Link href={role === "viewer" ? "/viewer/laporan-progress" : "/dashboard/riwayat-laporan"} className="flex flex-col items-center justify-center h-14 text-neutral-700 gap-0.5">
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
               <path d="M7 4h10a2 2 0 0 1 2 2v14l-5-2-5 2V6a2 2 0 0 1 2-2Z" />
             </svg>

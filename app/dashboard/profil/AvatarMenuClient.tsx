@@ -51,7 +51,10 @@ export default function AvatarMenuClient() {
             <button
               type="button"
               className="w-full inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm ring-1 ring-neutral-300 hover:bg-neutral-50"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                alert("Fitur edit foto profil sedang dalam pengembangan.");
+                setOpen(false);
+              }}
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
                 <path d="M5 6a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6Z" />

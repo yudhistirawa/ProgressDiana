@@ -4,13 +4,17 @@ import { useEffect, useState, useRef } from "react";
 import { getFirebaseClient } from "@/lib/firebaseClient";
 import { collection, getDocs, query, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 
+type ProjectKey = "diana" | "bungtomo";
+
 interface DailyData {
   tanggal: string;
   jumlah: number;
   items: any[];
 }
 
-export default function DataHarianClient() {
+export default function DataHarianClient({ project = "diana" }: { project?: ProjectKey }) {
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
   const [dailyStats, setDailyStats] = useState<DailyData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -27,7 +31,7 @@ export default function DataHarianClient() {
 
   useEffect(() => {
     loadDailyData();
-  }, [filterMonth, filterYear]);
+  }, [filterMonth, filterYear, projectKey]);
 
   async function loadDailyData() {
     setLoading(true);
@@ -35,7 +39,7 @@ export default function DataHarianClient() {
       const fb = getFirebaseClient();
       if (!fb) throw new Error("Firebase not initialized");
 
-      const col = collection(fb.db, "Progress_Diana");
+      const col = collection(fb.db, progressCollection);
       // We'll fetch documents and normalize tanggal values client-side
       // because some documents store tanggal in different formats
       const snapshot = await getDocs(query(col));
@@ -166,7 +170,7 @@ export default function DataHarianClient() {
       const fb = getFirebaseClient();
       if (!fb) throw new Error("Firebase not initialized");
 
-      const docRef = doc(fb.db, "Progress_Diana", editingItem.id);
+      const docRef = doc(fb.db, progressCollection, editingItem.id);
       await updateDoc(docRef, {
         tanggal: newDate, // Simpan dalam format YYYY-MM-DD
         jam: newTime.includes(':') ? newTime.replace(/:/g, '.') + '.00' : newTime, // Simpan dalam format hh.mm.ss
@@ -187,49 +191,24 @@ export default function DataHarianClient() {
     }
   }
 
-  // Preserve page scroll position when modal opens so closing it doesn't jump page to top
-  const savedScrollRef = useRef<number | null>(null);
   useEffect(() => {
-    if (selectedDate) {
-      // save scroll and lock body
-      savedScrollRef.current = window.scrollY || window.pageYOffset || 0;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${savedScrollRef.current}px`;
-      document.body.style.left = '0';
-      document.body.style.right = '0';
+    // Prevent background scroll when modal is open
+    if (selectedDate || editingItem || zoomedImage) {
+      document.body.style.overflow = 'hidden';
     } else {
-      // restore scroll and unlock body
-      if (savedScrollRef.current != null) {
-        document.body.style.position = '';
-        const y = savedScrollRef.current;
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-        window.scrollTo(0, y);
-        savedScrollRef.current = null;
-      } else {
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-      }
+      document.body.style.overflow = '';
     }
-
-    // cleanup on unmount
     return () => {
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.left = '';
-      document.body.style.right = '';
+      document.body.style.overflow = '';
     };
-  }, [selectedDate]);
+  }, [selectedDate, editingItem, zoomedImage]);
 
   const totalData = dailyStats.reduce((sum, day) => sum + day.jumlah, 0);
 
   return (
     <>
   {/* Header & Filters */}
-  <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-6">
+  <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-6 sticky top-0 z-10 backdrop-blur bg-white/95">
         <h2 className="text-xl font-semibold mb-4">Data Masuk Per Hari</h2>
         
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
@@ -296,8 +275,8 @@ export default function DataHarianClient() {
 
       {/* Daily Stats Table */}
       {!loading && dailyStats.length > 0 && (
-        <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden flex-1">
-          <div className="overflow-auto h-full">
+        <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
+          <div className="overflow-auto max-h-[65vh] sm:max-h-[70vh]">
             <table className="w-full text-sm">
               <thead className="bg-neutral-50 border-b border-neutral-200">
                 <tr>
@@ -358,21 +337,10 @@ export default function DataHarianClient() {
 
   {/* Modal Detail */}
       {selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto">
-    <div className="relative w-full max-w-5xl my-8 rounded-2xl bg-white shadow-xl max-h-[calc(100vh-4rem)] overflow-y-auto">
-            {/* Absolute close button relative to the modal container */}
-            <button
-              onClick={closeModal}
-              aria-label="Tutup"
-              title="Tutup"
-              className="absolute top-2 right-2 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-white/80 text-gray-600 shadow-md hover:bg-gray-100 transition-colors backdrop-blur-sm"
-            >
-              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={closeModal}>
+          <div className="relative w-full max-w-5xl rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-4 rounded-t-2xl">
+            <div className="sticky top-0 z-20 flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-4 rounded-t-2xl">
               <h3 className="text-lg font-semibold">
                 Detail Data - {new Date(selectedDate).toLocaleDateString("id-ID", {
                   day: "numeric",
@@ -380,10 +348,7 @@ export default function DataHarianClient() {
                   year: "numeric",
                 })}
               </h3>
-              <button
-                onClick={closeModal}
-                className="rounded-full p-2 hover:bg-neutral-100 transition-colors"
-              >
+              <button onClick={closeModal} className="rounded-full p-2 hover:bg-neutral-100 transition-colors">
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
                   <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
@@ -391,7 +356,7 @@ export default function DataHarianClient() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6">
+            <div className="overflow-y-auto p-6">
               <div className="mb-4 text-sm text-neutral-600">
                 Total: <span className="font-semibold text-neutral-900">{selectedItems.length}</span> laporan
               </div>
@@ -399,7 +364,7 @@ export default function DataHarianClient() {
               <div className="space-y-4">
                 {selectedItems.map((item, index) => (
                   <div
-                    key={item.id}
+                    key={item.id || index}
                     className="rounded-lg border border-neutral-200 bg-white shadow-sm p-5"
                   >
                     {/* Header Card */}
@@ -432,23 +397,31 @@ export default function DataHarianClient() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                       <div className="space-y-1">
                         <div className="text-xs font-semibold text-neutral-500 uppercase">Nama</div>
-                        <div className="text-sm text-neutral-900 font-medium">{item.nama || "-"}</div>
+                        <div className="text-sm text-neutral-900 font-medium">
+                          {item.nama || item.answers?.find((a: any) => a.label.toLowerCase().includes("nama"))?.value || "-"}
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <div className="text-xs font-semibold text-neutral-500 uppercase">Lokasi</div>
-                        <div className="text-sm text-neutral-900 font-medium">{item.lokasi || "-"}</div>
+                        <div className="text-sm text-neutral-900 font-medium">
+                          {item.lokasi || item.answers?.find((a: any) => a.label.toLowerCase().includes("lokasi"))?.value || "-"}
+                        </div>
                       </div>
                     </div>
 
                     {/* Pekerjaan */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                       <div className="space-y-1">
-                        <div className="text-xs font-semibold text-neutral-500 uppercase">Pekerjaan</div>
-                        <div className="text-sm text-neutral-900">{item.pekerjaan || "-"}</div>
+                        <div className="text-xs font-semibold text-neutral-500 uppercase">Pekerjaan</div> 
+                        <div className="text-sm text-neutral-900">
+                          {item.pekerjaan || item.answers?.find((a: any) => a.label.toLowerCase().includes("pekerjaan") && !a.label.toLowerCase().includes("jenis"))?.value || "-"}
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <div className="text-xs font-semibold text-neutral-500 uppercase">Jenis Pekerjaan</div>
-                        <div className="text-sm text-neutral-900">{item.jenis_pekerjaan || "-"}</div>
+                        <div className="text-sm text-neutral-900">
+                          {item.jenis_pekerjaan || item.answers?.find((a: any) => a.label.toLowerCase().includes("jenis pekerjaan"))?.value || "-"}
+                        </div>
                       </div>
                     </div>
 
