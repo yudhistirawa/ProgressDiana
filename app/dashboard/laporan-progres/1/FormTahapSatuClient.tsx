@@ -320,9 +320,15 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
 }
 
-type Props = { stage?: number };
+type ProjectKey = "diana" | "bungtomo";
+type Props = { stage?: number; project?: ProjectKey; stageId?: number | string | null };
 
-export default function FormTahapSatuClient({ stage = 1 }: Props) {
+export default function FormTahapSatuClient({ stage = 1, project = "diana", stageId }: Props) {
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
+  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : "Progress_Diana_Notifikasi";
+  const storagePrefix = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
+  const configKey = projectKey === "bungtomo" ? "stages_config_bungtomo" : "stages_config";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileWajibName, setFileWajibName] = useState("");
   const [fileOpsionalName, setFileOpsionalName] = useState("");
@@ -363,6 +369,8 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
 
   // Dynamic schema from admin (Firestore)
   const [schema, setSchema] = useState<FieldSpec[]>([]);
+  const [resolvedStageId, setResolvedStageId] = useState<number | string | null>(stage);
+  const [resolvedStageName, setResolvedStageName] = useState<string>(`Tahap ${stage}`);
   const [dynPhotoFiles, setDynPhotoFiles] = useState<Array<File | null>>([]);
   const [dynPhotoNames, setDynPhotoNames] = useState<string[]>([]);
   const [dynPhotoPreviews, setDynPhotoPreviews] = useState<Array<string | null>>([]);
@@ -370,6 +378,11 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
   const [uploadPerc, setUploadPerc] = useState<number[]>([]);
   const [uploadErr, setUploadErr] = useState<(string | null)[]>([]);
   const [photoSource, setPhotoSource] = useState<Record<number, 'camera' | 'gallery'>>({});
+  const normalizedStageId = useMemo(() => {
+    if (stageId === undefined || stageId === null || stageId === "") return null;
+    const n = Number(stageId);
+    return Number.isNaN(n) ? String(stageId) : n;
+  }, [stageId]);
 
   // Load persisted data from localStorage on mount
   useEffect(() => {
@@ -434,12 +447,25 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
             { id: 1, label: "Nama", type: "text" },
             { id: 2, label: "Lokasi Proyek", type: "text" },
           ]);
+          setResolvedStageId(normalizedStageId ?? stage);
+          setResolvedStageName(`Tahap ${stage}`);
           return;
         }
-        const ref = doc(fb.db, "config", "stages_config");
+        const ref = doc(fb.db, "config", configKey);
         const snap = await getDoc(ref);
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
-        const item = Array.isArray(list) ? (list[stage - 1] ?? list[0]) : undefined;
+        let item: any | undefined;
+        if (Array.isArray(list)) {
+          if (normalizedStageId !== null) {
+            item = list.find((s: any) => s?.id === normalizedStageId);
+          }
+          if (!item) {
+            item = list[stage - 1] ?? list[0];
+          }
+        }
+        const stageName = item?.name ?? `Tahap ${stage}`;
+        setResolvedStageId(item?.id ?? normalizedStageId ?? stage);
+        setResolvedStageName(stageName);
         let fields: FieldSpec[] = [];
         if (item?.fields) {
           fields = (item.fields as any[]).map((f: any, i: number) =>
@@ -467,9 +493,11 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
           { id: 1, label: "Nama", type: "text" },
           { id: 2, label: "Lokasi Proyek", type: "text" },
         ]);
+        setResolvedStageId(normalizedStageId ?? stage);
+        setResolvedStageName(`Tahap ${stage}`);
       }
     })();
-  }, [stage]);
+  }, [stage, configKey, normalizedStageId]);
 
   // Geolocation realtime
   useEffect(() => {
@@ -599,7 +627,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                   const uniq = (typeof crypto !== "undefined" && (crypto as any).randomUUID)
                     ? (crypto as any).randomUUID()
                     : Math.random().toString(36).slice(2);
-                  const path = `Progress_Diana/${recId}/${i + 1}_${uniq}_${file.name}`;
+                  const path = `${storagePrefix}/${recId}/${i + 1}_${uniq}_${file.name}`;
                   const r = ref(storage, path);
                   await new Promise<void>((resolve, reject) => {
                     const task = uploadBytesResumable(r, file, { contentType: file.type || "image/webp" });
@@ -654,6 +682,9 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
             const data = {
               id: recId,
               stage,
+              stageId: resolvedStageId ?? stage,
+              stageName: resolvedStageName || `Tahap ${stage}`,
+              project: projectKey,
               answers,
               uid,
               email,
@@ -670,7 +701,7 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
             if (fb) {
               try {
                 const { collection, doc, setDoc, serverTimestamp } = await import("firebase/firestore");
-                const col = collection(fb.db, "Progress_Diana");
+                const col = collection(fb.db, progressCollection);
                 await setDoc(doc(col, recId), {
                   ...data,
                   // Gunakan timestamp server agar urutan konsisten di query
@@ -684,14 +715,17 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
                 const notif = {
                   id: recId,
                   stage: data.stage,
-                  title: `Laporan Tahap ${data.stage}`,
-                  message: firstTwoTexts.join(" • ") || "Laporan masuk",
+                  stageId: data.stageId,
+                  stageName: data.stageName,
+                  project: data.project,
+                  title: data.stageName ? `Laporan ${data.stageName}` : `Laporan Tahap ${data.stage}`,
+                  message: firstTwoTexts.join(" | ") || "Laporan masuk",
                   tanggal: data.tanggal,
                   jam: data.jam,
                   createdAt: data.createdAt,
                   read: false,
                 };
-                const notifCol = collection(fb.db, "Progress_Diana_Notifikasi");
+                const notifCol = collection(fb.db, notifCollection);
                 await setDoc(doc(notifCol, recId), {
                   ...notif,
                   ts: serverTimestamp(),
@@ -1385,3 +1419,5 @@ export default function FormTahapSatuClient({ stage = 1 }: Props) {
     </div>
   );
 }
+
+

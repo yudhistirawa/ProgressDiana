@@ -29,6 +29,7 @@ export default function UserPelaksanaPage() {
             <nav className="p-3 grid gap-2 text-sm">
               <Link href="/admin/dashboard" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Home</Link>
               <Link href="/admin/laporan-progres" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Laporan Progres</Link>
+              <Link href="/admin/planning" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Planning</Link>
               <Link href="/admin/manajemen-pengguna" className="rounded-lg bg-red-600 text-white px-3 py-2">Manajemen Pengguna</Link>
               <Link href="/admin/formulir-tahapan" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Kelola Formulir & Tahapan</Link>
               <Link href="/admin/sampah" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Tempat Sampah</Link>
@@ -42,4 +43,3 @@ export default function UserPelaksanaPage() {
     </div>
   );
 }
-

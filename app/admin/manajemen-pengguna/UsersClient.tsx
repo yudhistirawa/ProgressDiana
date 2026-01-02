@@ -127,8 +127,14 @@ export default function UsersClient({ type }: { type: UserClientType }) {
   const openEdit = (u: User) => {
     setShowForm({ id: u.id });
     setFormUsername(u.username || "");
-    const roleValue = String(u.role || "").toLowerCase() === "admin" ? "admin" : "pelaksana";
-    setFormRole(roleValue);
+    const currentRole = String(u.role || "").toLowerCase();
+    if (currentRole === 'admin') {
+      setFormRole('admin');
+    } else if (currentRole === 'viewer') {
+      setFormRole('viewer');
+    } else {
+      setFormRole('pelaksana');
+    }
     setFormFullName(u.name || "");
     setFormPhone(u.phone || "");
     setFormEmail(u.email || "");
@@ -166,7 +172,7 @@ export default function UsersClient({ type }: { type: UserClientType }) {
       <div className="flex-1 overflow-y-auto pr-1">
         <ul className="space-y-3">
           {filtered.map((u) => (
-            <li key={u.id} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
+            <li key={u.id} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden animate-in fade-in duration-300">
               <div className="px-3 py-2.5 flex items-center gap-3">
                 <div className="h-10 w-10 shrink-0 rounded-full bg-neutral-100 grid place-items-center text-[11px] text-neutral-600 ring-1 ring-neutral-200">Foto</div>
                 <div className="min-w-0 flex-1">
@@ -189,7 +195,7 @@ export default function UsersClient({ type }: { type: UserClientType }) {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={() => setShowForm(null)}>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4 animate-in fade-in duration-200" onClick={() => setShowForm(null)}>
           <div className="relative w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
             <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-xl p-4">
               <div className="text-sm font-semibold mb-3">{showForm?.id ? "Edit Pengguna" : "Tambah Pengguna"}</div>
@@ -212,12 +218,13 @@ export default function UsersClient({ type }: { type: UserClientType }) {
                 }
                 if (formPassword) data.passwordHash = await hashPassword(formPassword);
                 if (showForm?.id) {
-                  if (!confirm("Simpan perubahan pengguna?")) return;
-                  // Edit profil (tidak mengubah password Auth di sini)
-                  await updateDoc(doc(fb.db, "users", showForm.id), data);
-                  alert("Perubahan pengguna tersimpan.");
+                  if (confirm("Simpan perubahan pengguna?")) {
+                    // Edit profil (tidak mengubah password Auth di sini)
+                    await updateDoc(doc(fb.db, "users", showForm.id), data);
+                    alert("Perubahan pengguna tersimpan.");
+                    setShowForm(null);
+                  }
                 } else {
-                  if (!confirm("Tambah pengguna baru?")) return;
                   // Tambah user baru: buat akun Auth via secondary app agar admin tidak logout
                   if (!data.email) { alert("Email wajib diisi untuk akun baru"); return; }
                   if (!formPassword) { alert("Kata sandi wajib diisi untuk akun baru"); return; }
@@ -232,13 +239,15 @@ export default function UsersClient({ type }: { type: UserClientType }) {
                   const existing = getApps().find((a) => a.name === "secondary");
                   const secApp = existing ?? initializeApp(cfg, "secondary");
                   const secAuth = getAuth(secApp);
-                  const cred = await createUserWithEmailAndPassword(secAuth, data.email, formPassword);
-                  await signOut(secAuth);
-                  const uid = cred.user.uid;
-                  await setDoc(doc(fb.db, "users", uid), { ...data, createdAt: serverTimestamp() });
-                  alert("Pengguna berhasil ditambahkan.");
+                  if (confirm("Tambah pengguna baru?")) {
+                    const cred = await createUserWithEmailAndPassword(secAuth, data.email, formPassword);
+                    await signOut(secAuth);
+                    const uid = cred.user.uid;
+                    await setDoc(doc(fb.db, "users", uid), { ...data, createdAt: serverTimestamp() });
+                    alert("Pengguna berhasil ditambahkan.");
+                    setShowForm(null);
+                  }
                 }
-                setShowForm(null);
               }}>
                 <div>
                   <div className="text-sm">Nama</div>

@@ -4,6 +4,7 @@ import RiwayatTahapClient from "../RiwayatTahapClient";
 
 type Props = {
   params: Promise<{ tahap: string }>;
+  searchParams?: Promise<{ project?: string }>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -14,8 +15,10 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
-export default async function RiwayatTahap({ params }: Props) {
+export default async function RiwayatTahap({ params, searchParams }: Props) {
   const { tahap } = await params;
+  const sp = searchParams ? await searchParams : undefined;
+  const projectParam = sp?.project === "bungtomo" ? "bungtomo" : "diana";
   const label = `Riwayat Tahap ${tahap}`;
 
   return (
@@ -36,7 +39,7 @@ export default async function RiwayatTahap({ params }: Props) {
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-4xl px-3 sm:px-4 py-3 flex items-center justify-between">
           <Link
-            href="/dashboard/riwayat-laporan"
+            href={`/dashboard/riwayat-laporan?project=${projectParam}`}
             className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm"
             title="Kembali"
           >
@@ -79,7 +82,7 @@ export default async function RiwayatTahap({ params }: Props) {
             ))}
           </div>
         }>
-          <RiwayatTahapClient stage={Number(tahap)} />
+          <RiwayatTahapClient stage={Number(tahap)} project={projectParam} />
         </Suspense>
       </main>
 
@@ -92,7 +95,7 @@ export default async function RiwayatTahap({ params }: Props) {
             </svg>
             <span>Beranda</span>
           </Link>
-          <Link href="/dashboard/riwayat-laporan" className="flex flex-col items-center justify-center h-14 text-neutral-900 gap-0.5">
+          <Link href={`/dashboard/riwayat-laporan?project=${projectParam}`} className="flex flex-col items-center justify-center h-14 text-neutral-900 gap-0.5">
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
               <path d="M7 4h10a2 2 0 0 1 2 2v14l-5-2-5 2V6a2 2 0 0 1 2-2Z" />
             </svg>

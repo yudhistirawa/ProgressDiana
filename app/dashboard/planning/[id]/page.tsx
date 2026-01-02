@@ -1,19 +1,13 @@
 import Link from "next/link";
-import { Suspense } from "react";
-import HistoryStagesClient from "./HistoryStagesClient";
+import PlanningDetailClient from "@/app/components/planning/PlanningDetailClient";
+import type { ProjectKey } from "@/lib/firestore/planning";
 
-export const metadata = {
-  title: "Riwayat Laporan - Sistem Dokumentasi Progres",
-  description: "Lihat riwayat laporan progres per tahap",
-};
+type Props = { params: { id: string }; searchParams?: { project?: string } };
 
-type Props = { searchParams?: { project?: string } };
-
-export default function RiwayatLaporan({ searchParams }: Props) {
-  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : "diana";
+export default function DashboardPlanningDetailPage({ params, searchParams }: Props) {
+  const projectParam: ProjectKey = searchParams?.project === "bungtomo" ? "bungtomo" : "diana";
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
-      {/* Decorative background - desktop/tablet */}
       <div className="pointer-events-none absolute inset-0 -z-10 hidden sm:block">
         <div aria-hidden className="absolute -left-24 -top-24 w-80 h-80 bg-neutral-900 rounded-3xl rotate-[25deg]" />
         <div aria-hidden className="absolute left-24 -top-14 w-60 h-60 bg-red-600 rounded-3xl rotate-[25deg] opacity-95" />
@@ -22,26 +16,23 @@ export default function RiwayatLaporan({ searchParams }: Props) {
         <div aria-hidden className="absolute -right-10 -bottom-10 w-60 h-60 bg-red-600 rounded-3xl rotate-[25deg]" />
         <div aria-hidden className="absolute right-40 -bottom-24 w-72 h-72 bg-neutral-300 rounded-3xl rotate-[25deg]" />
       </div>
-
-      {/* Decorative background - mobile */}
       <div className="pointer-events-none absolute inset-0 -z-10 sm:hidden">
         <div aria-hidden className="absolute -left-16 -top-16 w-40 h-40 bg-red-600 rounded-3xl rotate-[25deg]" />
         <div aria-hidden className="absolute -right-16 -bottom-16 w-40 h-40 bg-neutral-300 rounded-3xl rotate-[25deg]" />
       </div>
 
-      {/* Topbar */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-4xl px-3 sm:px-4 py-3 flex items-center justify-between">
           <Link
-            href="/dashboard"
+            href={`/dashboard/planning?project=${projectParam}`}
             className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm"
-            title="Kembali ke Dashboard"
+            title="Kembali"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
               <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />
             </svg>
           </Link>
-          <div className="text-sm sm:text-base font-semibold tracking-wide">Riwayat Laporan</div>
+          <div className="text-sm sm:text-base font-semibold tracking-wide">Detail Planning</div>
           <div className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-red-600 shadow-sm">
             <svg viewBox="0 0 100 100" className="h-4 w-4" fill="currentColor" aria-hidden>
               <g transform="translate(50,50)">
@@ -59,48 +50,10 @@ export default function RiwayatLaporan({ searchParams }: Props) {
         </div>
       </header>
 
-      {/* Content */}
-      <main className="mx-auto max-w-4xl px-3 sm:px-4 pb-20 pt-5">
-        <div className="mb-3 text-xs text-neutral-600">
-          Proyek aktif: <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">{projectParam === "bungtomo" ? "Bung Tomo" : "Diana"}</span>
-        </div>
-        <Suspense fallback={
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-3 sm:p-4 animate-pulse">
-                <div className="mx-auto mb-3 sm:mb-4 h-16 w-16 sm:h-20 sm:w-20 rounded-xl bg-gray-200"></div>
-                <div className="h-4 bg-gray-200 rounded"></div>
-              </div>
-            ))}
-          </div>
-        }>
-          <HistoryStagesClient project={projectParam} />
-        </Suspense>
+      <main className="mx-auto max-w-4xl px-3 sm:px-4 pb-8 pt-5">
+        <PlanningDetailClient planningId={params.id} mode="readonly" backHref={`/dashboard/planning?project=${projectParam}`} />
       </main>
-
-      {/* Bottom Nav (mobile only) */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur border-t border-neutral-200">
-        <div className="mx-auto max-w-6xl grid grid-cols-3 text-xs">
-          <Link href="/dashboard" className="flex flex-col items-center justify-center h-14 text-neutral-700 gap-0.5">
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
-              <path d="M12 3 3 10h3v10h5V14h2v6h5V10h3L12 3Z" />
-            </svg>
-            <span>Beranda</span>
-          </Link>
-          <Link href={`/dashboard/riwayat-laporan?project=${projectParam}`} className="flex flex-col items-center justify-center h-14 text-neutral-900 gap-0.5">
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
-              <path d="M7 4h10a2 2 0 0 1 2 2v14l-5-2-5 2V6a2 2 0 0 1 2-2Z" />
-            </svg>
-            <span>Riwayat</span>
-          </Link>
-          <Link href="/dashboard/profil" className="flex flex-col items-center justify-center h-14 text-neutral-700 gap-0.5">
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
-              <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
-            </svg>
-            <span>Profil</span>
-          </Link>
-        </div>
-      </nav>
     </div>
   );
 }
+

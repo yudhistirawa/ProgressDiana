@@ -2,9 +2,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getFirebaseClient } from "../../../../lib/firebaseClient";
 
+type ProjectKey = "diana" | "bungtomo";
+
 type Item = {
   id: string;
   stage?: number | string;
+  stageId?: number | string;
+  stageName?: string;
+  project?: string;
   // legacy fields
   nama?: string;
   lokasi?: string;
@@ -61,11 +66,35 @@ type EnrichedItem = Item & {
   fotoCount: number;
 };
 
-export default function StageReportListClient({ stage, readOnly }: { stage: number | string; readOnly?: boolean }) {
+type StageOption = { id: number; name: string };
+
+const CONFIG_KEYS: Record<ProjectKey, string> = {
+  diana: "stages_config",
+  bungtomo: "stages_config_bungtomo",
+};
+
+export default function StageReportListClient({
+  stage,
+  readOnly,
+  project = "diana",
+  stageId,
+}: {
+  stage: number | string;
+  readOnly?: boolean;
+  project?: ProjectKey;
+  stageId?: string | number | null;
+}) {
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
+  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : "Progress_Diana_Notifikasi";
   const stageNumber = Number(stage);
   const stageFilter = Number.isNaN(stageNumber) ? stage : stageNumber;
+  const normalizedStageId = stageId != null && stageId !== ""
+    ? (!Number.isNaN(Number(stageId)) ? Number(stageId) : String(stageId))
+    : null;
   const isStage4 = Number(stageFilter) === 4;
   const [items, setItems] = useState<Item[]>([]);
+  const [stageOptions, setStageOptions] = useState<StageOption[]>([]);
   const [query, setQuery] = useState("");
   const [asc, setAsc] = useState(false);
   const [page, setPage] = useState(1);
@@ -79,6 +108,11 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
   const [editMutuBeton, setEditMutuBeton] = useState("");
   const [editElemenPekerjaan, setEditElemenPekerjaan] = useState("");
   const [editSudutPukul, setEditSudutPukul] = useState("");
+  const [moveTarget, setMoveTarget] = useState<Record<string, string>>({});
+  const [moveLoadingId, setMoveLoadingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkTarget, setBulkTarget] = useState<string>("");
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   // Reset edit form when modal is closed
   useEffect(() => {
@@ -111,6 +145,32 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
   // Delete confirmation alert state
   const [deleteAlert, setDeleteAlert] = useState<AlertState>({ type: 'warning', title: '', message: '', show: false });
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
+
+  // Load stage options for move feature
+  useEffect(() => {
+    const fb = getFirebaseClient();
+    if (!fb) return;
+    (async () => {
+      try {
+        const key = CONFIG_KEYS[projectKey];
+        const { doc, getDoc } = await import("firebase/firestore");
+        const snap = await getDoc(doc(fb.db, "config", key));
+        const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
+        if (Array.isArray(list)) {
+          const opts = list.map((s: any, idx: number) => ({
+            id: s?.id ?? idx + 1,
+            name: s?.name ?? `Tahap ${idx + 1}`,
+          }));
+          setStageOptions(opts);
+        } else {
+          setStageOptions([]);
+        }
+      } catch (err) {
+        console.error("Failed to load stage options:", err);
+        setStageOptions([]);
+      }
+    })();
+  }, [projectKey]);
 
   useEffect(() => {
     if (!selected || typeof window === "undefined") return;
@@ -454,35 +514,31 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
   }, [isModalOpen]);
 
   const enrichItem = (item: Item): EnrichedItem => {
-    // Handle legacy fields first
-    let headerNama = "";
+    // Handle legacy fields first (keep empty so answers can override)
+    let headerNama = (item.nama || "").trim();
     let keteranganNama = "";
     let pekerjaan = "";
     let jenisPekerjaan = "";
     let elemenPekerjaan = "";
     let sudutPukul = "";
-    let lokasi = "";
+    let lokasi = (item.lokasi || "").trim();
     let waktuLabel = "";
 
     // Check if this is a legacy record (no answers array)
     const isLegacyFormat = !Array.isArray(item.answers) || item.answers.length === 0;
 
-    // Handle legacy fields first
-    headerNama = item.nama || "Tanpa Nama";
-    lokasi = item.lokasi || "Lokasi tidak diisi";
-    
     // Handle legacy pekerjaan fields based on stage
     if (isStage4) {
       // For stage 4, prioritize hammer test specific fields
-      pekerjaan = item.kodeBendaUji || item.kode_benda_uji || item.pekerjaan || "Tidak ada kode";
-      jenisPekerjaan = item.mutuBeton || item.mutu_beton || "Tidak ada mutu";
-      elemenPekerjaan = item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan || "Tidak ada elemen";
-      sudutPukul = "Tidak ada data sudut";
+      pekerjaan = item.kodeBendaUji || item.kode_benda_uji || item.pekerjaan || "";
+      jenisPekerjaan = item.mutuBeton || item.mutu_beton || "";
+      elemenPekerjaan = item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan || "";
+      sudutPukul = "";
     } else {
       // For other stages
-      pekerjaan = item.pekerjaan || "Tidak ada pekerjaan";
-      jenisPekerjaan = item.jenisPekerjaan || pekerjaan;
-      elemenPekerjaan = item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan || "-";
+      pekerjaan = item.pekerjaan || "";
+      jenisPekerjaan = item.jenisPekerjaan || "";
+      elemenPekerjaan = item.elemenPekerjaan || item.elementPekerjaan || item.elemen_pekerjaan || "";
     }
     
     // Handle legacy date/time
@@ -502,14 +558,22 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
         const type = String(answer.type || "").toLowerCase();
         const value = answer.value != null ? String(answer.value).trim() : "";
         if (!value) return; // Skip empty values
+        const textLike =
+          type === "text" ||
+          type === "select" ||
+          type === "dropdown" ||
+          type === "radio" ||
+          type === "choice" ||
+          type === "option";
+        const canSetHeaderNama = !headerNama || headerNama.toLowerCase() === "tanpa nama";
 
         // Nama Petugas Processing
-        if (type === "text" && !processedAnswers.has("nama")) {
+        if (textLike && !processedAnswers.has("nama")) {
           if (label.includes("keterangan") && label.includes("nama")) {
             keteranganNama = value;
             processedAnswers.add("keteranganNama");
           } else if ((label.includes("nama") && label.includes("petugas")) || label.includes("nama")) {
-            if (!headerNama) { // Only set if not already set
+            if (canSetHeaderNama) {
               headerNama = value;
               processedAnswers.add("nama");
             }
@@ -517,7 +581,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
         }
 
         // Pekerjaan Processing
-        if (type === "text" && !processedAnswers.has("pekerjaan")) {
+        if (textLike && !processedAnswers.has("pekerjaan")) {
           if (isStage4) {
             if (label.includes("kode") && label.includes("benda")) {
               pekerjaan = value;
@@ -546,7 +610,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
         }
 
         // Lokasi Processing
-        if (type === "text" && !processedAnswers.has("lokasi")) {
+        if (textLike && !processedAnswers.has("lokasi")) {
           if (label.includes("lokasi") || label.includes("alamat") || label.includes("tempat")) {
             lokasi = value;
             processedAnswers.add("lokasi");
@@ -639,23 +703,50 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
     }
 
     try {
-      const { collection, query, where, orderBy, getDocs, onSnapshot } = await import("firebase/firestore");
-      const col = collection(fb.db, "Progress_Diana");
-      const q = query(col, where("stage", "==", stage));
+      const { collection, query, where, orderBy, onSnapshot } = await import("firebase/firestore");
+      const col = collection(fb.db, progressCollection);
 
-      // Use onSnapshot for real-time updates
-      const unsubscribe = onSnapshot(q, (snap) => {
-        const items: Item[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-        setItems(items);
+      const buckets: Record<string, Item[]> = {};
+      const mergeAndSet = () => {
+        const merged = new Map<string, Item>();
+        Object.values(buckets).forEach((list) => {
+          list.forEach((item) => merged.set(item.id, item));
+        });
+        setItems(Array.from(merged.values()));
         setLoading(false);
-        console.log("Γ£à Loaded", items.length, "reports for stage", stage);
-      }, (err) => {
-        console.error("Γ¥î Firestore error:", err);
-        setItems([]);
-        setLoading(false);
-      });
+      };
 
-      return unsubscribe;
+      const unsubs: Array<() => void> = [];
+      const attach = (key: string, q: ReturnType<typeof query>) => {
+        const unsub = onSnapshot(
+          q,
+          (snap) => {
+            buckets[key] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+            mergeAndSet();
+          },
+          (err) => {
+            console.error("Firestore listener error:", err);
+            buckets[key] = [];
+            mergeAndSet();
+          }
+        );
+        unsubs.push(unsub);
+      };
+
+      if (normalizedStageId !== null) {
+        const qStageId = query(col, where("stageId", "==", normalizedStageId), orderBy("createdAt", "desc"));
+        attach("stageId", qStageId);
+      }
+
+      const stageValues = Array.from(new Set([stage, Number(stage)])).filter(
+        (v) => v !== null && v !== undefined && !(typeof v === "number" && Number.isNaN(v))
+      );
+      const qStage = query(col, where("stage", "in", stageValues as any[]));
+      attach("stage", qStage);
+
+      return () => {
+        unsubs.forEach((fn) => fn?.());
+      };
     } catch (err) {
       console.error("Error setting up Firestore listener:", err);
       setItems([]);
@@ -664,11 +755,140 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
   };
 
   useEffect(() => {
-    const unsubscribe = load();
-    return () => {
-      unsubscribe?.then(unsub => unsub?.());
-    };
-  }, [stage]);
+    let cleanup: void | (() => void);
+    load().then((unsub) => {
+      cleanup = unsub;
+    });
+    return () => cleanup?.();
+  }, [stage, progressCollection, normalizedStageId]);
+
+  const handleMove = async (item: Item) => {
+    const targetRaw = moveTarget[item.id];
+    if (!targetRaw) {
+      alert("Pilih tahap tujuan terlebih dahulu");
+      return;
+    }
+    const targetId = Number.isNaN(Number(targetRaw)) ? targetRaw : Number(targetRaw);
+    const targetStage = stageOptions.find((s) => s.id === targetId);
+    if (!targetStage) {
+      alert("Tahap tujuan tidak ditemukan");
+      return;
+    }
+    const targetStageNumber = stageOptions.findIndex((s) => s.id === targetStage.id) + 1;
+    setMoveLoadingId(item.id);
+    const fb = getFirebaseClient();
+    if (!fb) {
+      alert("Firebase tidak tersedia");
+      setMoveLoadingId(null);
+      return;
+    }
+    try {
+      const { doc, updateDoc } = await import("firebase/firestore");
+      const docRef = doc(fb.db, progressCollection, item.id);
+      await updateDoc(docRef, {
+        stage: targetStageNumber,
+        stageId: targetStage.id,
+        stageName: targetStage.name,
+        project: projectKey,
+      });
+      try {
+        const notifRef = doc(fb.db, notifCollection, item.id);
+        await updateDoc(notifRef, {
+          stage: targetStageNumber,
+          stageId: targetStage.id,
+          stageName: targetStage.name,
+          project: projectKey,
+        });
+      } catch {}
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === item.id
+            ? { ...x, stage: targetStageNumber, stageId: targetStage.id, stageName: targetStage.name, project: projectKey }
+            : x
+        )
+      );
+      setMoveTarget((prev) => ({ ...prev, [item.id]: "" }));
+    } catch (err) {
+      console.error("Gagal memindahkan data:", err);
+      alert("Gagal memindahkan data, cek log");
+    } finally {
+      setMoveLoadingId(null);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const selectAllFiltered = () => {
+    const allIds = filtered.map((x) => x.id);
+    setSelectedIds(allIds);
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const handleBulkMove = async () => {
+    if (selectedIds.length === 0) {
+      alert("Pilih minimal satu laporan untuk dipindah");
+      return;
+    }
+    if (!bulkTarget) {
+      alert("Pilih tahap tujuan terlebih dahulu");
+      return;
+    }
+    const targetId = Number.isNaN(Number(bulkTarget)) ? bulkTarget : Number(bulkTarget);
+    const targetStage = stageOptions.find((s) => s.id === targetId);
+    if (!targetStage) {
+      alert("Tahap tujuan tidak ditemukan");
+      return;
+    }
+    const targetStageNumber = stageOptions.findIndex((s) => s.id === targetStage.id) + 1;
+    setBulkLoading(true);
+    const fb = getFirebaseClient();
+    if (!fb) {
+      alert("Firebase tidak tersedia");
+      setBulkLoading(false);
+      return;
+    }
+    try {
+      const { doc, updateDoc } = await import("firebase/firestore");
+      const updates = selectedIds.map(async (id) => {
+        const docRef = doc(fb.db, progressCollection, id);
+        await updateDoc(docRef, {
+          stage: targetStageNumber,
+          stageId: targetStage.id,
+          stageName: targetStage.name,
+          project: projectKey,
+        });
+        try {
+          const notifRef = doc(fb.db, notifCollection, id);
+          await updateDoc(notifRef, {
+            stage: targetStageNumber,
+            stageId: targetStage.id,
+            stageName: targetStage.name,
+            project: projectKey,
+          });
+        } catch {}
+      });
+      await Promise.all(updates);
+      setItems((prev) =>
+        prev.map((x) =>
+          selectedIds.includes(x.id)
+            ? { ...x, stage: targetStageNumber, stageId: targetStage.id, stageName: targetStage.name, project: projectKey }
+            : x
+        )
+      );
+      setSelectedIds([]);
+      setBulkTarget("");
+    } catch (err) {
+      console.error("Gagal bulk move:", err);
+      alert("Gagal memindahkan data, cek log");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -816,12 +1036,12 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
     try {
       const { doc, deleteDoc } = await import("firebase/firestore");
-      const docRef = doc(fb.db, "Progress_Diana", itemToDelete.id);
+      const docRef = doc(fb.db, progressCollection, itemToDelete.id);
       await deleteDoc(docRef);
 
       // Delete notification if exists
       try {
-        const notifRef = doc(fb.db, "Progress_Diana_Notifikasi", itemToDelete.id);
+        const notifRef = doc(fb.db, notifCollection, itemToDelete.id);
         await deleteDoc(notifRef);
       } catch {}
 
@@ -961,6 +1181,63 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
             Reset
           </button>
         </div>
+        {!readOnly && (
+          <div className="flex items-center gap-2">
+            <select
+              value={bulkTarget}
+              onChange={(e) => setBulkTarget(e.target.value)}
+              className="rounded-2xl border border-neutral-200 bg-white px-3 py-2 text-xs sm:text-sm font-medium text-neutral-700 shadow-sm"
+            >
+              <option value="">Pilih Tahap (Bulk)</option>
+              {stageOptions.map((opt, idx) => (
+                <option key={opt.id ?? idx} value={opt.id}>
+                  {opt.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={bulkLoading || stageOptions.length === 0}
+              onClick={handleBulkMove}
+              className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-2 text-xs sm:text-sm shadow-sm hover:bg-emerald-100 disabled:opacity-60 whitespace-nowrap"
+            >
+              {bulkLoading ? (
+                <span className="flex items-center gap-1">
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>
+                  </svg>
+                  Pindah Terpilih
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                    <path d="M12 3a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V4a1 1 0 0 1 1-1Z" />
+                  </svg>
+                  Pindah Terpilih
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+        {!readOnly && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={selectAllFiltered}
+              className="inline-flex items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 text-neutral-800 px-3 py-2 text-xs sm:text-sm shadow-sm hover:bg-neutral-100 whitespace-nowrap"
+            >
+              Pilih Semua
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="inline-flex items-center gap-2 rounded-2xl border border-neutral-200 bg-white text-neutral-700 px-3 py-2 text-xs sm:text-sm shadow-sm hover:bg-neutral-50 whitespace-nowrap"
+            >
+              Batal Pilihan
+            </button>
+          </div>
+        )}
         <button
           type="button"
           onClick={handleExportExcel}
@@ -983,6 +1260,14 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
             <div className="p-4 sm:p-6 flex flex-col gap-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-3">
+                  {!readOnly && (
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 mt-1 rounded border-neutral-300 text-red-500 focus:ring-red-400"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                    />
+                  )}
                   <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 shadow-inner">
                     <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
                       <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
@@ -1056,6 +1341,43 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
                         </svg>
                         Edit
                       </button>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={moveTarget[item.id] ?? ""}
+                          onChange={(e) => setMoveTarget((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                          className="rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-700 shadow-sm"
+                        >
+                          <option value="">Pilih Tahap</option>
+                          {stageOptions.map((opt, idx) => (
+                            <option key={opt.id ?? idx} value={opt.id}>
+                              {opt.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          disabled={moveLoadingId === item.id || stageOptions.length === 0}
+                          onClick={() => handleMove(item)}
+                          className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-60"
+                        >
+                          {moveLoadingId === item.id ? (
+                            <span className="flex items-center gap-1">
+                              <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>
+                              </svg>
+                              Pindah...
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                                <path d="M12 3a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V4a1 1 0 0 1 1-1Z" />
+                              </svg>
+                              Pindah
+                            </span>
+                          )}
+                        </button>
+                      </div>
                       <button
                         type="button"
                         onClick={() => showDeleteAlert(item)}
@@ -1242,7 +1564,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
       {/* Modern Detail Modal */}
       {selected && (
-        <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[75] flex items-start justify-center p-4 pt-8 animate-in fade-in duration-300 overflow-y-auto">
           {/* Backdrop with blur */}
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
@@ -1255,7 +1577,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
             role="dialog"
             aria-modal="true"
             tabIndex={-1}
-            className="relative w-full max-w-7xl max-h-[90vh] overflow-hidden mx-4 animate-in slide-in-from-bottom-4 duration-500 transform-gpu animate-in zoom-in-98 fade-in duration-400 delay-100"
+            className="relative w-full max-w-7xl max-h-[calc(100vh-4rem)] overflow-hidden mx-4 animate-in slide-in-from-bottom-4 duration-500 transform-gpu animate-in zoom-in-98 fade-in duration-400 delay-100"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Fixed close button: always visible in viewport even when modal is clipped */}
@@ -1579,7 +1901,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
       {/* Professional Edit Modal */}
       {editItem && !readOnly && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] flex items-start justify-center p-4 pt-8 overflow-y-auto">
           {/* Enhanced Backdrop */}
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -1592,7 +1914,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
             role="dialog"
             aria-modal="true"
             tabIndex={-1}
-            className="relative w-full max-w-7xl max-h-[90vh] overflow-hidden mx-4"
+            className="relative w-full max-w-7xl max-h-[calc(100vh-4rem)] overflow-hidden mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
@@ -1625,7 +1947,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
               </div>
 
               {/* Professional Content */}
-              <div className="max-h-[85vh] overflow-y-auto px-8 py-6">
+              <div className="max-h-[calc(100vh-12rem)] overflow-y-auto px-8 py-6">
 
                 {/* Status & Meta Info */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1808,7 +2130,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
                         try {
                           const { doc, updateDoc } = await import("firebase/firestore");
-                          const docRef = doc(fb.db, "Progress_Diana", editItem.id);
+                          const docRef = doc(fb.db, progressCollection, editItem.id);
 
                           // Prepare update data with both legacy fields and answers array
                           const updateData: any = {
@@ -1831,7 +2153,7 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
 
                           // Update notification if exists
                           try {
-                            const notifRef = doc(fb.db, "Progress_Diana_Notifikasi", editItem.id);
+                            const notifRef = doc(fb.db, notifCollection, editItem.id);
                             const message = isStage4
                               ? `${updatedItem.pekerjaan || editItem.pekerjaan} • ${updatedItem.elemenPekerjaan || editItem.elemenPekerjaan} • ${updatedItem.lokasi || editItem.lokasi} • ${editSudutPukul || "-"}`
                               : `${updatedItem.pekerjaan || editItem.pekerjaan} • ${updatedItem.lokasi || editItem.lokasi}`;
@@ -2121,3 +2443,4 @@ export default function StageReportListClient({ stage, readOnly }: { stage: numb
     </div>
   );
 }
+

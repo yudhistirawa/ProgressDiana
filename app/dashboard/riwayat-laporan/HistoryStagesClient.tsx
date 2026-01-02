@@ -5,8 +5,13 @@ import { getFirebaseClient } from "@/lib/firebaseClient";
 import { doc, getDoc } from "firebase/firestore";
 
 type StageItem = { id: number; name: string };
+type ProjectKey = "diana" | "bungtomo";
+const CONFIG_KEYS: Record<ProjectKey, string> = {
+  diana: "stages_config",
+  bungtomo: "stages_config_bungtomo",
+};
 
-export default function HistoryStagesClient() {
+export default function HistoryStagesClient({ project = "diana" }: { project?: ProjectKey }) {
   const [stages, setStages] = useState<StageItem[]>([]);
 
   useEffect(() => {
@@ -14,7 +19,8 @@ export default function HistoryStagesClient() {
     if (!fb) return;
     (async () => {
       try {
-        const ref = doc(fb.db, "config", "stages_config");
+        const key = CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : "diana"];
+        const ref = doc(fb.db, "config", key);
         const snap = await getDoc(ref);
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
         setStages(Array.isArray(list) ? list : []);
@@ -22,7 +28,7 @@ export default function HistoryStagesClient() {
         setStages([]);
       }
     })();
-  }, []);
+  }, [project]);
 
   const items = useMemo(
     () => stages.map((s: any, i: number) => ({ id: i + 1, title: s?.name || `Tahap ${i + 1}` })),
@@ -32,7 +38,7 @@ export default function HistoryStagesClient() {
   if (items.length === 0) {
     return (
       <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-6 text-center text-sm text-neutral-500">
-        Belum ada tahap. Admin dapat menambah dari menu Kelola Formulir & Tahapan.
+        Belum ada tahap untuk proyek {project === "bungtomo" ? "Bung Tomo" : "Diana"}. Admin dapat menambah dari menu Kelola Formulir & Tahapan.
       </div>
     );
   }
@@ -42,7 +48,7 @@ export default function HistoryStagesClient() {
       {items.map((stage, idx) => (
         <Link
           key={stage.id}
-          href={`/dashboard/riwayat-laporan/${stage.id}`}
+          href={`/dashboard/riwayat-laporan/${stage.id}?project=${project === "bungtomo" ? "bungtomo" : "diana"}`}
           className="group rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 p-3 sm:p-4 text-center backdrop-blur hover:-translate-y-0.5"
         >
           <div
@@ -74,4 +80,3 @@ export default function HistoryStagesClient() {
     </section>
   );
 }
-

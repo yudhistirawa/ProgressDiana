@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import ViewerDataHarianClient from "./ViewerDataHarianClient";
 import AvatarMenuClient from "@/app/admin/components/AvatarMenuClient";
 import { useEffect, useState } from "react";
+import PlanningListClient from "@/app/components/planning/PlanningListClient";
+import type { ProjectKey } from "@/lib/firestore/planning";
 
-type ProjectKey = "diana" | "bungtomo";
 const PROJECT_STORAGE_KEY = "viewer_selected_project";
 
-export default function ViewerDataHarianPage() {
+export default function ViewerPlanningPage() {
   const [project, setProject] = useState<ProjectKey>("diana");
 
   useEffect(() => {
@@ -18,14 +18,11 @@ export default function ViewerDataHarianPage() {
 
   const handleProject = (p: ProjectKey) => {
     setProject(p);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(PROJECT_STORAGE_KEY, p);
-    }
+    if (typeof window !== "undefined") localStorage.setItem(PROJECT_STORAGE_KEY, p);
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-neutral-50 text-neutral-900">
-      {/* Header */}
+    <div className="relative min-h-screen w-full bg-neutral-50 text-neutral-900">
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-3 grid grid-cols-12 items-center gap-3">
           <div className="col-span-6 flex items-center gap-2">
@@ -34,7 +31,7 @@ export default function ViewerDataHarianPage() {
                 <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />
               </svg>
             </Link>
-            <h1 className="text-lg font-semibold text-neutral-900">Data Masuk Harian</h1>
+            <h1 className="text-lg font-semibold text-neutral-900">Planning</h1>
           </div>
           <div className="col-span-6 flex items-center justify-end gap-2">
             <AvatarMenuClient />
@@ -42,12 +39,11 @@ export default function ViewerDataHarianPage() {
         </div>
       </header>
 
-      {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-4" style={{ minHeight: 'calc(100vh - 65px)' }}>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
         <div className="rounded-2xl ring-1 ring-neutral-200 bg-white p-4 sm:p-5 shadow-sm flex items-center justify-between">
           <div>
             <div className="text-sm font-semibold text-neutral-900">Pilih Proyek</div>
-            <div className="text-xs text-neutral-500">Data viewer dipisah per proyek</div>
+            <div className="text-xs text-neutral-500">Planning dipisah per proyek</div>
           </div>
           <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
             {(["diana", "bungtomo"] as const).map((p) => {
@@ -58,7 +54,7 @@ export default function ViewerDataHarianPage() {
                   onClick={() => handleProject(p)}
                   className={[
                     "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all",
-                    active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white"
+                    active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white",
                   ].join(" ")}
                 >
                   {p === "diana" ? "Proyek Diana" : "Proyek Bung Tomo"}
@@ -68,8 +64,9 @@ export default function ViewerDataHarianPage() {
           </div>
         </div>
 
-        <ViewerDataHarianClient project={project} />
+        <PlanningListClient projectKey={project} mode="readonly" basePath="/viewer/planning" />
       </main>
     </div>
   );
 }
+
