@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import ExcelJS from "exceljs";
 import { getFirebaseClient } from "../../../../lib/firebaseClient";
 
 type ProjectKey = "diana" | "bungtomo";
@@ -64,6 +65,11 @@ type EnrichedItem = Item & {
   lokasiLabel: string;
   waktuLabel: string;
   fotoCount: number;
+  pekerjaanTitle: string;
+  jenisPekerjaanTitle: string;
+  elemenPekerjaanTitle: string;
+  sudutPukulTitle: string;
+  lokasiTitle: string;
 };
 
 type StageOption = { id: number; name: string };
@@ -523,6 +529,11 @@ export default function StageReportListClient({
     let sudutPukul = "";
     let lokasi = (item.lokasi || "").trim();
     let waktuLabel = "";
+    let pekerjaanTitle = isStage4 ? "Kode Benda Uji" : "Pekerjaan";
+    let jenisPekerjaanTitle = isStage4 ? "Mutu Beton" : "Jenis Pekerjaan";
+    let elemenPekerjaanTitle = isStage4 ? "Elemen Pekerjaan" : "Elemen Pekerjaan";
+    let sudutPukulTitle = "Sudut Pukul";
+    let lokasiTitle = "Lokasi";
 
     // Check if this is a legacy record (no answers array)
     const isLegacyFormat = !Array.isArray(item.answers) || item.answers.length === 0;
@@ -581,30 +592,45 @@ export default function StageReportListClient({
         }
 
         // Pekerjaan Processing
-        if (textLike && !processedAnswers.has("pekerjaan")) {
-          if (isStage4) {
-            if (label.includes("kode") && label.includes("benda")) {
+        if (textLike) {
+          const isKodeBenda = label.includes("kode") && label.includes("benda");
+          const isMutuBeton = label.includes("mutu") && label.includes("beton");
+          const isJenisPekerjaan = label.includes("jenis") && label.includes("pekerjaan");
+          const isElemenPekerjaan = label.includes("elemen") && label.includes("pekerjaan");
+          const isSudutPukul = label.includes("sudut") && label.includes("pukul");
+          const isPekerjaanUmum = label.includes("pekerjaan") || label.includes("kegiatan");
+
+          // Jenis pekerjaan (termasuk mutu beton) - ambil label asli supaya kartu ikut judul form
+          if (!processedAnswers.has("jenisPekerjaan") && (isJenisPekerjaan || isMutuBeton)) {
+            jenisPekerjaan = value;
+            jenisPekerjaanTitle = answer.label || jenisPekerjaanTitle;
+            processedAnswers.add("jenisPekerjaan");
+          }
+
+          // Elemen pekerjaan
+          if (!processedAnswers.has("elemenPekerjaan") && isElemenPekerjaan) {
+            elemenPekerjaan = value;
+            elemenPekerjaanTitle = answer.label || elemenPekerjaanTitle;
+            processedAnswers.add("elemenPekerjaan");
+          }
+
+          // Sudut pukul (khusus stage 4)
+          if (!processedAnswers.has("sudutPukul") && isSudutPukul) {
+            sudutPukul = value;
+            sudutPukulTitle = answer.label || sudutPukulTitle;
+            processedAnswers.add("sudutPukul");
+          }
+
+          // Pekerjaan / kode benda uji / fallback pekerjaan umum
+          if (!processedAnswers.has("pekerjaan")) {
+            if (isKodeBenda) {
               pekerjaan = value;
+              pekerjaanTitle = answer.label || pekerjaanTitle;
               processedAnswers.add("pekerjaan");
-            } else if (label.includes("mutu") && label.includes("beton")) {
-              jenisPekerjaan = value;
-              processedAnswers.add("jenisPekerjaan");
-            } else if (label.includes("sudut") && label.includes("pukul")) {
-              sudutPukul = value;
-              processedAnswers.add("sudutPukul");
-            }
-          } else {
-            if (label.includes("pekerjaan")) {
-              if (label.includes("jenis")) {
-                jenisPekerjaan = value;
-                processedAnswers.add("jenisPekerjaan");
-              } else if (label.includes("elemen")) {
-                elemenPekerjaan = value;
-                processedAnswers.add("elemenPekerjaan");
-              } else {
-                pekerjaan = value;
-                processedAnswers.add("pekerjaan");
-              }
+            } else if (isPekerjaanUmum && !isJenisPekerjaan && !isElemenPekerjaan && !isMutuBeton) {
+              pekerjaan = value;
+              pekerjaanTitle = answer.label || pekerjaanTitle;
+              processedAnswers.add("pekerjaan");
             }
           }
         }
@@ -614,6 +640,7 @@ export default function StageReportListClient({
           if (label.includes("lokasi") || label.includes("alamat") || label.includes("tempat")) {
             lokasi = value;
             processedAnswers.add("lokasi");
+            lokasiTitle = answer.label || lokasiTitle;
           }
         }
       });
@@ -644,7 +671,12 @@ export default function StageReportListClient({
     // Handle jenis pekerjaan
     if (!jenisPekerjaan) {
       if (isStage4) {
-        jenisPekerjaan = item.mutuBeton || item.mutu_beton || "Mutu beton tidak diisi";
+        jenisPekerjaan =
+          item.mutuBeton ||
+          item.mutu_beton ||
+          pekerjaan ||
+          "Mutu beton tidak diisi";
+        if (!jenisPekerjaanTitle) jenisPekerjaanTitle = isStage4 ? "Mutu Beton" : "Jenis Pekerjaan";
       } else {
         jenisPekerjaan = pekerjaan;
       }
@@ -652,15 +684,18 @@ export default function StageReportListClient({
 
     // Handle elemen pekerjaan with all possible field names
     if (!elemenPekerjaan) {
-      elemenPekerjaan = item.elemenPekerjaan || 
-                        item.elementPekerjaan || 
-                        item.elemen_pekerjaan ||
-                        (isStage4 ? "Elemen tidak diisi" : "-");
+      elemenPekerjaan =
+        item.elemenPekerjaan ||
+        item.elementPekerjaan ||
+        item.elemen_pekerjaan ||
+        (!isStage4 ? "-" : jenisPekerjaan || pekerjaan || "Elemen tidak diisi");
+      if (!elemenPekerjaanTitle) elemenPekerjaanTitle = isStage4 ? "Elemen Pekerjaan" : "Elemen Pekerjaan";
     }
 
     // Special handling for Stage 4
     if (isStage4) {
       if (!sudutPukul) sudutPukul = "Sudut pukul tidak diisi";
+      if (!sudutPukulTitle) sudutPukulTitle = "Sudut Pukul";
     }
 
     // Format waktu dengan konsisten
@@ -691,6 +726,11 @@ export default function StageReportListClient({
       lokasiLabel: lokasi || "-",
       waktuLabel: waktuLabel || "-",
       fotoCount,
+      pekerjaanTitle,
+      jenisPekerjaanTitle,
+      elemenPekerjaanTitle,
+      sudutPukulTitle,
+      lokasiTitle,
     };
   };
 
@@ -965,6 +1005,25 @@ export default function StageReportListClient({
       if (item.pekerjaan) {
         pseudoAnswers.push({ label: "Pekerjaan", type: "text", value: item.pekerjaan });
       }
+      if (isStage4) {
+        if (item.kodeBendaUji || item.kode_benda_uji) {
+          pseudoAnswers.push({
+            label: "Kode Benda Uji",
+            type: "text",
+            value: item.kodeBendaUji || item.kode_benda_uji,
+          });
+        }
+        if (item.mutuBeton || item.mutu_beton) {
+          pseudoAnswers.push({
+            label: "Mutu Beton",
+            type: "text",
+            value: item.mutuBeton || item.mutu_beton,
+          });
+        }
+        if (item.sudutPukul) {
+          pseudoAnswers.push({ label: "Sudut Pukul", type: "text", value: item.sudutPukul });
+        }
+      }
       if (item.jenisPekerjaan) {
         pseudoAnswers.push({ label: "Jenis Pekerjaan", type: "text", value: item.jenisPekerjaan });
       }
@@ -1064,26 +1123,51 @@ export default function StageReportListClient({
     setSelectedDate("");
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     const exportData = filtered;
     if (!exportData.length) {
       alert("Tidak ada data untuk diexport.");
       return;
     }
 
-    const rows: string[] = [];
-    rows.push(`<table border="1" style="border-collapse:collapse;">`);
-    rows.push(`<tr><th colspan="2" style="font-size:16px;background:#EEF2FF;">Laporan Tahap ${stage}</th></tr>`);
-    rows.push(`<tr><th style="background:#F4F4F5;">Sub Judul</th><th style="background:#F4F4F5;">Isi</th></tr>`);
+    const slugify = (value: string) =>
+      value
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "foto";
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet(`Laporan Tahap ${stage}`);
+
+    sheet.columns = [
+      { header: "Sub Judul", key: "title", width: 26 },
+      { header: "Isi", key: "value", width: 60 },
+    ];
+
+    // Header
+    const headerRow = sheet.addRow([`Laporan Tahap ${stage}`, ""]);
+    headerRow.font = { bold: true, size: 14 };
+    headerRow.alignment = { horizontal: "center" };
+    sheet.mergeCells(headerRow.number, 1, headerRow.number, 2);
+
+    const subHeader = sheet.addRow(["Sub Judul", "Isi"]);
+    subHeader.font = { bold: true };
+    subHeader.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } };
+
+    const addRow = (title: string, value: string | number) => {
+      const row = sheet.addRow([title, value]);
+      row.getCell(1).alignment = { vertical: "top" };
+      row.getCell(2).alignment = { vertical: "top", wrapText: true };
+      return row;
+    };
 
     exportData.forEach((item, index) => {
-      const addRow = (title: string, value: string) => {
-        rows.push(`<tr><td>${title}</td><td>${value || "-"}</td></tr>`);
-      };
-
-      rows.push(
-        `<tr><td colspan="2" style="font-weight:bold;background:#E0F2FE;">No. ${index + 1} - ${item.displayName || "Tanpa Nama"}</td></tr>`
-      );
+      const section = sheet.addRow([`No. ${index + 1} - ${item.displayName || "Tanpa Nama"}`, ""]);
+      section.font = { bold: true };
+      section.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE0F2FE" } };
+      sheet.mergeCells(section.number, 1, section.number, 2);
 
       addRow("Nama Petugas", item.displayName || "-");
       addRow("Keterangan Nama Pekerja", item.namaPetugasLabel || "-");
@@ -1093,15 +1177,17 @@ export default function StageReportListClient({
       addRow(
         "Koordinat GPS",
         item.latitude && item.longitude
-          ? `Lat: ${item.latitude} | Lon: ${item.longitude}${item.accuracy ? ` (&plusmn;${Math.round(item.accuracy)}m)` : ""}`
+          ? `Lat: ${item.latitude} | Lon: ${item.longitude}${item.accuracy ? ` (±${Math.round(item.accuracy)}m)` : ""}`
           : "-"
       );
-      addRow(isStage4 ? "Kode Benda Uji" : "Pekerjaan", item.pekerjaanLabel || "-");
-      addRow(isStage4 ? "Mutu Beton" : "Jenis Pekerjaan", item.jenisPekerjaanLabel || "-");
+      addRow(item.pekerjaanTitle || (isStage4 ? "Kode Benda Uji" : "Pekerjaan"), item.pekerjaanLabel || "-");
+      addRow(item.jenisPekerjaanTitle || (isStage4 ? "Mutu Beton" : "Jenis Pekerjaan"), item.jenisPekerjaanLabel || "-");
       if (isStage4) {
-        addRow("Elemen Pekerjaan", item.elemenPekerjaanLabel || "-");
-        addRow("Sudut Pukul", item.sudutPukulLabel || "-");
+        addRow(item.elemenPekerjaanTitle || "Elemen Pekerjaan", item.elemenPekerjaanLabel || "-");
+        addRow(item.sudutPukulTitle || "Sudut Pukul", item.sudutPukulLabel || "-");
       }
+
+      const photoEntries: string[] = [];
 
       if (Array.isArray(item.answers)) {
         item.answers.forEach((answer: any) => {
@@ -1110,7 +1196,7 @@ export default function StageReportListClient({
           const type = String(answer.type || "").toLowerCase();
           if (type === "photo") {
             const url = typeof answer.value === "string" ? answer.value : "";
-            addRow(label, url ? `<a href="${url}">${url}</a>` : "-");
+            if (url) photoEntries.push(url);
           } else {
             const value = answer.value == null ? "" : String(answer.value);
             addRow(label, value);
@@ -1118,26 +1204,34 @@ export default function StageReportListClient({
         });
       }
 
-      if (item.fotoWajibName || item.fotoOpsionalName) {
-        addRow(
-          "Nama File Foto",
-          [item.fotoWajibName, item.fotoOpsionalName].filter(Boolean).join(", ") || "-"
-        );
+      [item.fotoWajibName, item.fotoOpsionalName]
+        .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+        .forEach((x) => photoEntries.push(x.trim()));
+      if (Array.isArray(item.files)) {
+        item.files.forEach((u) => {
+          if (typeof u === "string" && u.trim()) photoEntries.push(u.trim());
+        });
       }
 
-      rows.push(`<tr><td colspan="2" style="height:12px;background:#FFFFFF;"></td></tr>`);
+      if (photoEntries.length > 0) {
+        photoEntries.forEach((url, idxPhoto) => {
+          const row = addRow(idxPhoto === 0 ? "Upload Foto" : "", "");
+          row.getCell(2).value = { text: url, hyperlink: url };
+          row.getCell(2).font = { color: { argb: "FF1D4ED8" }, underline: true };
+        });
+      }
+
+      sheet.addRow(["", ""]); // spacer
     });
 
-    rows.push(`</table>`);
-
-    const tableHtml = `\uFEFF${rows.join("")}`;
-    const blob = new Blob([tableHtml], {
-      type: "application/vnd.ms-excel;charset=utf-8;",
+    const xlsxBuffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([xlsxBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `laporan-tahap-${stage}-${new Date().toISOString().slice(0, 10)}.xls`;
+    link.download = `laporan-tahap-${stage}-${new Date().toISOString().slice(0, 10)}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1147,13 +1241,13 @@ export default function StageReportListClient({
   const displayAnswersForSelected = selected ? prepareDisplayAnswers(selected) : [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-6xl mx-auto px-3 sm:px-0">
       {/* Title */}
       <div className="text-center text-sm text-neutral-600">List Pekerjaan Tahap {stage}</div>
 
       {/* Search + Filter Tanggal */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 min-w-[240px] sm:min-w-[280px]">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
               <path d="M10 2a8 8 0 1 0 4.9 14.3l4.4 4.4a1 1 0 0 0 1.4-1.4l-4.4-4.4A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1 0 12A6 6 0 0 1 10 4Z" />
@@ -1166,7 +1260,7 @@ export default function StageReportListClient({
             className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-10 py-2.5 text-sm shadow-inner placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-300"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
           <input
             type="date"
             value={selectedDate}
@@ -1182,7 +1276,7 @@ export default function StageReportListClient({
           </button>
         </div>
         {!readOnly && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:ml-auto">
             <select
               value={bulkTarget}
               onChange={(e) => setBulkTarget(e.target.value)}
@@ -1221,7 +1315,7 @@ export default function StageReportListClient({
           </div>
         )}
         {!readOnly && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <button
               type="button"
               onClick={selectAllFiltered}
@@ -1255,9 +1349,9 @@ export default function StageReportListClient({
         {paginated.map((item) => (
           <li
             key={item.id}
-            className="rounded-3xl border border-neutral-200 bg-white shadow-sm hover:shadow-lg transition-all duration-200"
+            className="rounded-3xl border border-neutral-200 bg-white shadow-sm hover:shadow-lg transition-all duration-200 w-full overflow-hidden"
           >
-            <div className="p-4 sm:p-6 flex flex-col gap-4">
+            <div className="p-4 sm:p-6 flex flex-col gap-4 min-w-0">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-3">
                   {!readOnly && (
@@ -1277,7 +1371,7 @@ export default function StageReportListClient({
                     <div className="text-base font-semibold text-neutral-900 leading-tight">
                       {item.displayName || "Tanpa Nama"}
                     </div>
-                    <div className="text-xs text-neutral-500 mt-1">
+                    <div className="text-xs text-neutral-500 mt-1 truncate">
                       {item.lokasiLabel || "-"}
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1299,7 +1393,7 @@ export default function StageReportListClient({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   <button
                     type="button"
                     onClick={() => {
@@ -1414,7 +1508,7 @@ export default function StageReportListClient({
                   </span>
                   <div>
                     <div className="text-xs font-medium text-blue-600 uppercase tracking-wide">
-                      {isStage4 ? "Kode Benda Uji" : "Pekerjaan"}
+                      {item.pekerjaanTitle || (isStage4 ? "Kode Benda Uji" : "Pekerjaan")}
                     </div>
                     <div className="text-sm font-semibold text-blue-700">{item.pekerjaanLabel || "-"}</div>
                   </div>
@@ -1428,7 +1522,7 @@ export default function StageReportListClient({
                   </span>
                   <div>
                     <div className="text-xs font-medium text-indigo-600 uppercase tracking-wide">
-                      {isStage4 ? "Mutu Beton" : "Jenis Pekerjaan"}
+                      {item.jenisPekerjaanTitle || (isStage4 ? "Mutu Beton" : "Jenis Pekerjaan")}
                     </div>
                     <div className="text-sm font-semibold text-indigo-700">{item.jenisPekerjaanLabel || "-"}</div>
                   </div>
@@ -1437,15 +1531,17 @@ export default function StageReportListClient({
                 {isStage4 && (
                   <div className="flex items-center gap-3 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-100 text-yellow-600">
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                      </svg>
-                    </span>
-                    <div>
-                      <div className="text-xs font-medium text-yellow-600 uppercase tracking-wide">Elemen Pekerjaan</div>
-                      <div className="text-sm font-semibold text-yellow-700">{item.elemenPekerjaanLabel || "-"}</div>
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <div className="text-xs font-medium text-yellow-600 uppercase tracking-wide">
+                      {item.elemenPekerjaanTitle || "Elemen Pekerjaan"}
                     </div>
+                    <div className="text-sm font-semibold text-yellow-700">{item.elemenPekerjaanLabel || "-"}</div>
                   </div>
+                </div>
                 )}
 
                 <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
@@ -1456,7 +1552,7 @@ export default function StageReportListClient({
                     </svg>
                   </span>
                   <div>
-                    <div className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Lokasi</div>
+                    <div className="text-xs font-medium text-emerald-600 uppercase tracking-wide">{item.lokasiTitle || "Lokasi"}</div>
                     <div className="text-sm font-semibold text-emerald-700">{item.lokasiLabel || "-"}</div>
                   </div>
                 </div>
