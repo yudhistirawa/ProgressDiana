@@ -180,7 +180,7 @@ export default function PlanningListClient(props: {
                 <div className="min-w-0 space-y-1">
                   <div className="text-sm sm:text-base font-semibold text-neutral-900 line-clamp-2">{p.title}</div>
                   <div className="text-xs text-neutral-500">
-                    {p.startDate} -> {p.dueDate}
+                    {`${p.startDate} -> ${p.dueDate}`}
                   </div>
                   <div className="text-[11px] text-neutral-500">
                     {typeof p.workerCount === "number" ? `Pekerja: ${p.workerCount}` : "Pekerja: -"}

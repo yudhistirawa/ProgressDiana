@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     if (!ct.startsWith("image/")) return null;
     const buffer = await res.arrayBuffer();
     const ext = ct.includes("png") ? "png" : "jpeg";
-    return { buffer, ext: ext === "jpg" ? "jpeg" : ext };
+    return { buffer, ext };
   };
 
   try {
