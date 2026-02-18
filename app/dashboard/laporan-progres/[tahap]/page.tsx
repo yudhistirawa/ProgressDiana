@@ -1,9 +1,11 @@
 import Link from "next/link";
 import ConfirmNavigationButton from "@/components/ConfirmNavigationButton";
 import { formStorageKey, unsavedFlagKey, UNSAVED_PROGRESS_CONFIRM_MESSAGE } from "@/lib/progressDraftKeys";
+import FormTahapSatuClient from "../1/FormTahapSatuClient";
 
 type Props = {
   params: Promise<{ tahap: string }>;
+  searchParams?: Promise<{ project?: string; stageId?: string }>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -15,8 +17,11 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
-export default async function TahapDetail({ params }: Props) {
+export default async function TahapDetail({ params, searchParams }: Props) {
   const { tahap } = await params;
+  const sp = searchParams ? await searchParams : undefined;
+  const projectParam = sp?.project === "bungtomo" ? "bungtomo" : "diana";
+  const stageIdParam = sp?.stageId;
   const tahapLabel = `Tahap ${tahap}`;
 
   return (
@@ -111,8 +116,13 @@ export default async function TahapDetail({ params }: Props) {
           </Link>
         </section>
 
-        {/* Placeholder table/list */}
-        <section className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
+        {/* Formulir/tabel list */}
+        <section className="space-y-4">
+          <div>
+            <FormTahapSatuClient stage={Number(tahap)} project={projectParam} stageId={stageIdParam} />
+          </div>
+
+          <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
             <div className="text-sm font-medium">Aktivitas Terbaru</div>
             <span className="text-xs text-neutral-500">3 item</span>
@@ -140,6 +150,7 @@ export default async function TahapDetail({ params }: Props) {
               <span className="inline-flex items-center gap-2 text-xs text-neutral-600"><span className="size-2 rounded-full bg-neutral-300" />Draft</span>
             </li>
           </ul>
+          </div>
         </section>
       </main>
     </div>
