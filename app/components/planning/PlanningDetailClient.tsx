@@ -210,7 +210,7 @@ export default function PlanningDetailClient(props: {
             <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Proyek {projectLabel}</div>
             <div className="text-lg font-semibold text-neutral-900">{planning.title}</div>
             <div className="mt-1 text-xs text-neutral-500">
-              {planning.startDate} -> {planning.dueDate}
+              {planning.startDate} {'->'} {planning.dueDate}
               {typeof planning.workerCount === "number" ? (
                 <>
                   {" | "}Pekerja: <span className="font-semibold text-neutral-700">{planning.workerCount}</span>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AvatarMenuClient from "../../components/AvatarMenuClient";
 import StageReportListClient from "./StageReportListClient";
+import StageTitleClient from "./StageTitleClient";
 
 type Props = { params: Promise<{ tahap: string }>; searchParams?: Promise<{ project?: string; stageId?: string }> };
 
@@ -105,7 +106,7 @@ export default async function AdminTahapPage({ params, searchParams }: Props) {
                 <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />
               </svg>
             </Link>
-            <div className="text-sm sm:text-base font-semibold tracking-wide">Tahap {tahap}</div>
+            <StageTitleClient stage={tahap} stageId={stageIdParam} project={projectParam} />
           </div>
           <div className="col-span-12 sm:col-span-6" />
           <div className="col-span-12 sm:col-span-3 flex items-center justify-end gap-2">

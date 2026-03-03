@@ -458,8 +458,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
         if (Array.isArray(list)) {
           if (normalizedStageId !== null) {
             item = list.find((s: any) => s?.id === normalizedStageId);
-          }
-          if (!item) {
+          } else {
             item = list[stage - 1] ?? list[0];
           }
         }

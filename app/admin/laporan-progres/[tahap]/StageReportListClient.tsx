@@ -98,6 +98,11 @@ export default function StageReportListClient({
   const normalizedStageId = stageId != null && stageId !== ""
     ? (!Number.isNaN(Number(stageId)) ? Number(stageId) : String(stageId))
     : null;
+  const normalizeStageIdValue = (value: Item["stageId"]) => {
+    if (value === undefined || value === null || value === "") return null;
+    const n = Number(value);
+    return Number.isNaN(n) ? String(value) : n;
+  };
   const isStage4 = Number(stageFilter) === 4;
   const [items, setItems] = useState<Item[]>([]);
   const [stageOptions, setStageOptions] = useState<StageOption[]>([]);
@@ -177,6 +182,29 @@ export default function StageReportListClient({
       }
     })();
   }, [projectKey]);
+
+  const stageName = useMemo(() => {
+    if (stageOptions.length === 0) return "";
+    if (normalizedStageId !== null) {
+      const match = stageOptions.find((opt) => {
+        const optId = normalizeStageIdValue(opt.id);
+        return optId !== null && optId === normalizedStageId;
+      });
+      if (match?.name) return match.name;
+    }
+    if (Number.isFinite(stageNumber)) {
+      const idx = Math.max(0, Number(stageNumber) - 1);
+      const match = stageOptions[idx];
+      if (match?.name) return match.name;
+    }
+    return "";
+  }, [stageOptions, normalizedStageId, stageNumber]);
+
+  const stageDisplay = useMemo(() => {
+    const stageLabel = Number.isNaN(stageNumber) ? String(stage) : String(stageNumber);
+    if (!stageName) return `Tahap ${stageLabel}`;
+    return `Tahap ${stageLabel} — ${stageName}`;
+  }, [stage, stageName, stageNumber]);
 
   useEffect(() => {
     if (!selected || typeof window === "undefined") return;
@@ -747,14 +775,22 @@ export default function StageReportListClient({
       const col = collection(fb.db, progressCollection);
 
       const buckets: Record<string, Item[]> = {};
-      const mergeAndSet = () => {
-        const merged = new Map<string, Item>();
-        Object.values(buckets).forEach((list) => {
-          list.forEach((item) => merged.set(item.id, item));
-        });
-        setItems(Array.from(merged.values()));
-        setLoading(false);
-      };
+        const mergeAndSet = () => {
+          const merged = new Map<string, Item>();
+          Object.values(buckets).forEach((list) => {
+            list.forEach((item) => merged.set(item.id, item));
+          });
+          const mergedList = Array.from(merged.values());
+          const filtered =
+            normalizedStageId !== null
+              ? mergedList.filter((item) => {
+                  const itemStageId = normalizeStageIdValue(item.stageId);
+                  return itemStageId === null || itemStageId === normalizedStageId;
+                })
+              : mergedList;
+          setItems(filtered);
+          setLoading(false);
+        };
 
       const unsubs: Array<() => void> = [];
       const attach = (key: string, q: ReturnType<typeof query>) => {
@@ -773,16 +809,16 @@ export default function StageReportListClient({
         unsubs.push(unsub);
       };
 
-      if (normalizedStageId !== null) {
-        const qStageId = query(col, where("stageId", "==", normalizedStageId), orderBy("createdAt", "desc"));
-        attach("stageId", qStageId);
-      }
+        if (normalizedStageId !== null) {
+          const qStageId = query(col, where("stageId", "==", normalizedStageId), orderBy("createdAt", "desc"));
+          attach("stageId", qStageId);
+        }
 
       const stageValues = Array.from(new Set([stage, Number(stage)])).filter(
         (v) => v !== null && v !== undefined && !(typeof v === "number" && Number.isNaN(v))
       );
-      const qStage = query(col, where("stage", "in", stageValues as any[]));
-      attach("stage", qStage);
+        const qStage = query(col, where("stage", "in", stageValues as any[]));
+        attach("stage", qStage);
 
       return () => {
         unsubs.forEach((fn) => fn?.());
@@ -1243,7 +1279,7 @@ export default function StageReportListClient({
   return (
     <div className="space-y-4 max-w-6xl mx-auto px-3 sm:px-0">
       {/* Title */}
-      <div className="text-center text-sm text-neutral-600">List Pekerjaan Tahap {stage}</div>
+    <div className="text-center text-sm text-neutral-600">List Pekerjaan {stageDisplay}</div>
 
       {/* Search + Filter Tanggal */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
