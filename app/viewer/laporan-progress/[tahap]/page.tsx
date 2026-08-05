@@ -8,7 +8,7 @@ type Props = { params: { tahap: string }; searchParams?: { project?: string } };
 
 export default function ViewerStageDetailPage({ params, searchParams }: Props) {
   const stage = params.tahap;
-  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : "diana";
+  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "bisma" ? "bisma" : "diana";
 
   return (
     <div className="relative min-h-screen w-full bg-neutral-50 text-neutral-900">

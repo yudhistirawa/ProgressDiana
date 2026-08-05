@@ -7,10 +7,11 @@ import { doc, getDoc } from "firebase/firestore";
 type FieldSpec = { id: number; label: string; type: "text" | "photo" };
 type StageItem = { id: number; name: string; date?: string | number; fields?: FieldSpec[] | any[] };
 
-type ProjectKey = "diana" | "bungtomo";
+type ProjectKey = "diana" | "bungtomo" | "bisma";
 const CONFIG_KEYS: Record<ProjectKey, string> = {
   diana: "stages_config",
   bungtomo: "stages_config_bungtomo",
+  bisma: "stages_config_bisma",
 };
 
 export default function UserStagesClient({ project = "diana" }: { project?: ProjectKey }) {
@@ -21,7 +22,7 @@ export default function UserStagesClient({ project = "diana" }: { project?: Proj
     if (!fb) return; // require Firebase configured
     (async () => {
       try {
-        const key = CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : "diana"];
+        const key = CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana"];
         const ref = doc(fb.db, "config", key);
         const snap = await getDoc(ref);
         const list = snap.exists() ? (snap.data()?.list as StageItem[] | undefined) : undefined;
@@ -49,7 +50,7 @@ export default function UserStagesClient({ project = "diana" }: { project?: Proj
   if (items.length === 0) {
     return (
       <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-6 text-center text-sm text-neutral-500">
-        Belum ada tahapan untuk proyek {project === "bungtomo" ? "Bung Tomo" : "Diana"}. Admin dapat menambah dari menu Kelola Formulir & Tahapan.
+        Belum ada tahapan untuk proyek {project === "bungtomo" ? "Bung Tomo" : project === "bisma" ? "Bisma" : "Diana"}. Admin dapat menambah dari menu Kelola Formulir & Tahapan.
       </div>
     );
   }
@@ -59,7 +60,7 @@ export default function UserStagesClient({ project = "diana" }: { project?: Proj
       {items.map((stage, idx) => (
         <Link
           key={stage.id}
-          href={`/dashboard/laporan-progres/${stage.id}?project=${project === "bungtomo" ? "bungtomo" : "diana"}${stage.stageId != null ? `&stageId=${stage.stageId}` : ""}`}
+          href={`/dashboard/laporan-progres/${stage.id}?project=${project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana"}${stage.stageId != null ? `&stageId=${stage.stageId}` : ""}`}
           className="group rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 p-3 sm:p-4 text-center backdrop-blur hover:-translate-y-0.5"
         >
           <div className="mx-auto mb-3 sm:mb-4 h-16 w-16 sm:h-20 sm:w-20 rounded-xl grid place-items-center bg-gradient-to-br from-slate-50 to-slate-100 ring-1 ring-neutral-200 text-neutral-800 group-hover:scale-105 transition-transform" aria-hidden>

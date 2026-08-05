@@ -13,7 +13,7 @@ export default function ViewerPlanningPage() {
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? (localStorage.getItem(PROJECT_STORAGE_KEY) as ProjectKey | null) : null;
-    if (saved === "bungtomo" || saved === "diana") setProject(saved);
+    if (saved === "bungtomo" || saved === "diana" || saved === "bisma") setProject(saved);
   }, []);
 
   const handleProject = (p: ProjectKey) => {
@@ -46,7 +46,7 @@ export default function ViewerPlanningPage() {
             <div className="text-xs text-neutral-500">Planning dipisah per proyek</div>
           </div>
           <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
-            {(["diana", "bungtomo"] as const).map((p) => {
+            {(["diana", "bungtomo", "bisma"] as const).map((p) => {
               const active = project === p;
               return (
                 <button
@@ -57,7 +57,7 @@ export default function ViewerPlanningPage() {
                     active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white",
                   ].join(" ")}
                 >
-                  {p === "diana" ? "Proyek Diana" : "Proyek Bung Tomo"}
+                  {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : "Proyek Bung Tomo"}
                 </button>
               );
             })}

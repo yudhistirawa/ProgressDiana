@@ -23,9 +23,10 @@ export default function AdminDashboard() {
             <Link
               href="/admin"
               className="inline-flex items-center justify-center h-10 w-10 rounded-2xl border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm"
+              style={{ width: 40, height: 40, minWidth: 40, minHeight: 40, flex: "0 0 40px" }}
               title="Kembali"
             >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+              <svg viewBox="0 0 24 24" width="16" height="16" className="h-4 w-4" fill="currentColor" aria-hidden>
                 <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />
               </svg>
             </Link>

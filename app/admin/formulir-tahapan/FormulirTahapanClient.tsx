@@ -13,10 +13,11 @@ type AlertState = {
   show: boolean;
 };
 
-type ProjectKey = "diana" | "bungtomo";
+type ProjectKey = "diana" | "bungtomo" | "bisma";
 const CONFIG_KEYS: Record<ProjectKey, string> = {
   diana: "stages_config",
   bungtomo: "stages_config_bungtomo",
+  bisma: "stages_config_bisma",
 };
 
 function useStages(project: ProjectKey) {
@@ -117,7 +118,7 @@ export default function FormulirTahapanClient() {
           <p className="text-xs text-neutral-500">Form yang sudah ada saat ini milik Proyek Diana. Pilih proyek lain untuk membuat set baru.</p>
         </div>
         <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
-          {(["diana", "bungtomo"] as const).map((p) => {
+          {(["diana", "bungtomo", "bisma"] as const).map((p) => {
             const active = project === p;
             return (
               <button
@@ -128,7 +129,7 @@ export default function FormulirTahapanClient() {
                   active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white"
                 ].join(" ")}
               >
-                {p === "diana" ? "Diana" : "Bung Tomo"}
+                {p === "diana" ? "Diana" : p === "bisma" ? "Bisma" : "Bung Tomo"}
               </button>
             );
           })}

@@ -5,7 +5,7 @@ import type { ProjectKey } from "@/lib/firestore/planning";
 type Props = { params: { id: string }; searchParams?: { project?: string } };
 
 export default function DashboardPlanningDetailPage({ params, searchParams }: Props) {
-  const projectParam: ProjectKey = searchParams?.project === "bungtomo" ? "bungtomo" : "diana";
+  const projectParam: ProjectKey = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "bisma" ? "bisma" : "diana";
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       <div className="pointer-events-none absolute inset-0 -z-10 hidden sm:block">

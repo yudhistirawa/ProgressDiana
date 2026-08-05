@@ -10,7 +10,7 @@ export const metadata = {
 type Props = { searchParams?: { project?: string } };
 
 export default function DashboardPlanningPage({ searchParams }: Props) {
-  const projectParam: ProjectKey = searchParams?.project === "bungtomo" ? "bungtomo" : "diana";
+  const projectParam: ProjectKey = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "bisma" ? "bisma" : "diana";
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       <div className="pointer-events-none absolute inset-0 -z-10 hidden sm:block">
@@ -60,7 +60,7 @@ export default function DashboardPlanningPage({ searchParams }: Props) {
           <p className="text-xs sm:text-sm text-neutral-600">
             Proyek aktif:{" "}
             <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">
-              {projectParam === "diana" ? "Diana" : "Bung Tomo"}
+              {projectParam === "diana" ? "Diana" : projectParam === "bisma" ? "Bisma" : "Bung Tomo"}
             </span>
           </p>
           <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
@@ -81,6 +81,15 @@ export default function DashboardPlanningPage({ searchParams }: Props) {
               ].join(" ")}
             >
               Bung Tomo
+            </Link>
+            <Link
+              href="/dashboard/planning?project=bisma"
+              className={[
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                projectParam === "bisma" ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white",
+              ].join(" ")}
+            >
+              Bisma
             </Link>
           </div>
         </div>

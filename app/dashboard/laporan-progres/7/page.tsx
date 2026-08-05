@@ -10,7 +10,7 @@ export const metadata = {
 type Props = { searchParams?: { project?: string; stageId?: string } };
 
 export default function LaporanTahapTujuh({ searchParams }: Props) {
-  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : "diana";
+  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "bisma" ? "bisma" : "diana";
   const stageId = searchParams?.stageId;
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ExcelJS from "exceljs";
 import { getFirebaseClient } from "../../../../lib/firebaseClient";
 
-type ProjectKey = "diana" | "bungtomo";
+type ProjectKey = "diana" | "bungtomo" | "bisma";
 
 type Item = {
   id: string;
@@ -77,6 +77,62 @@ type StageOption = { id: number; name: string };
 const CONFIG_KEYS: Record<ProjectKey, string> = {
   diana: "stages_config",
   bungtomo: "stages_config_bungtomo",
+  bisma: "stages_config_bisma",
+};
+
+const getRenderableImageUrl = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^blob:/i.test(trimmed)) return trimmed;
+  if (/^data:image\//i.test(trimmed)) return trimmed;
+  return null;
+};
+
+const collectPhotoSources = (item: {
+  answers?: Array<{ label?: string; type?: string; value?: unknown }> | null;
+  files?: unknown;
+  fotoWajibName?: string | null;
+  fotoOpsionalName?: string | null;
+}) => {
+  const urls: string[] = [];
+  const names: string[] = [];
+  const seenUrls = new Set<string>();
+  const seenNames = new Set<string>();
+
+  const pushUrl = (value: unknown) => {
+    const url = getRenderableImageUrl(value);
+    if (!url || seenUrls.has(url)) return;
+    seenUrls.add(url);
+    urls.push(url);
+  };
+
+  const pushName = (value: unknown) => {
+    if (typeof value !== "string") return;
+    const trimmed = value.trim();
+    if (!trimmed || seenNames.has(trimmed)) return;
+    seenNames.add(trimmed);
+    names.push(trimmed);
+  };
+
+  if (Array.isArray(item.answers)) {
+    item.answers.forEach((answer) => {
+      if (String(answer?.type || "").toLowerCase() !== "photo") return;
+      const rawValue = answer?.value;
+      pushUrl(rawValue);
+      if (!getRenderableImageUrl(rawValue)) pushName(rawValue);
+    });
+  }
+
+  if (Array.isArray(item.files)) {
+    item.files.forEach((entry) => pushUrl(entry));
+  }
+
+  pushName(item.fotoWajibName);
+  pushName(item.fotoOpsionalName);
+
+  return { urls, names };
 };
 
 export default function StageReportListClient({
@@ -90,9 +146,9 @@ export default function StageReportListClient({
   project?: ProjectKey;
   stageId?: string | number | null;
 }) {
-  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : "diana";
-  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
-  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : "Progress_Diana_Notifikasi";
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
+  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : projectKey === "bisma" ? "Progress_Bisma_Notifikasi" : "Progress_Diana_Notifikasi";
   const stageNumber = Number(stage);
   const stageFilter = Number.isNaN(stageNumber) ? stage : stageNumber;
   const normalizedStageId = stageId != null && stageId !== ""
@@ -810,7 +866,7 @@ export default function StageReportListClient({
       };
 
         if (normalizedStageId !== null) {
-          const qStageId = query(col, where("stageId", "==", normalizedStageId), orderBy("createdAt", "desc"));
+          const qStageId = query(col, where("stageId", "==", normalizedStageId));
           attach("stageId", qStageId);
         }
 
@@ -1025,6 +1081,7 @@ export default function StageReportListClient({
 
   const prepareDisplayAnswers = (item: any): Answer[] => {
     if (!item) return [];
+    const photoSources = collectPhotoSources(item);
 
     // Legacy record handling - create pseudo-answers from fields
     const isLegacyFormat = !Array.isArray(item.answers) || item.answers.length === 0;
@@ -1073,11 +1130,19 @@ export default function StageReportListClient({
       if (item.tanggal) {
         pseudoAnswers.push({ label: "Tanggal", type: "text", value: item.tanggal });
       }
-      if (item.fotoWajibName) {
-        pseudoAnswers.push({ label: "Foto Wajib", type: "photo", value: item.fotoWajibName });
-      }
-      if (item.fotoOpsionalName) {
-        pseudoAnswers.push({ label: "Foto Opsional", type: "photo", value: item.fotoOpsionalName });
+      photoSources.urls.forEach((url: string, index: number) => {
+        pseudoAnswers.push({
+          label: index === 0 ? "Foto Wajib" : `Foto ${index + 1}`,
+          type: "photo",
+          value: url,
+        });
+      });
+      if (photoSources.names.length > 0) {
+        pseudoAnswers.push({
+          label: "File Foto",
+          type: "text",
+          value: photoSources.names.join(", "),
+        });
       }
       
       return pseudoAnswers;
@@ -1104,13 +1169,41 @@ export default function StageReportListClient({
       }
     }
 
-    // Otherwise, return answers but filter out empty values for cleaner display.
-    return answers.filter((a) => {
-      if (!a) return false;
-      if (String(a.type || "").toLowerCase() === "photo") return true;
+    // Otherwise, return answers but normalize photo values so broken filenames
+    // are shown as text instead of being rendered as invalid image URLs.
+    const normalizedAnswers = answers.flatMap((a) => {
+      if (!a) return [];
+      if (String(a.type || "").toLowerCase() === "photo") {
+        const url = getRenderableImageUrl(a.value);
+        if (url) return [{ ...a, value: url }];
+        const textValue = a.value == null ? "" : String(a.value).trim();
+        return textValue ? [{ label: a.label || "File Foto", type: "text", value: textValue }] : [];
+      }
       const v = a.value == null ? "" : String(a.value);
-      return v.trim().length > 0;
+      return v.trim().length > 0 ? [a] : [];
     });
+
+    const hasRenderablePhoto = normalizedAnswers.some((a) => String(a.type || "").toLowerCase() === "photo");
+    if (!hasRenderablePhoto && photoSources.urls.length > 0) {
+      normalizedAnswers.push(
+        ...photoSources.urls.map((url, index) => ({
+          label: index === 0 ? "Upload Foto" : `Upload Foto ${index + 1}`,
+          type: "photo",
+          value: url,
+        }))
+      );
+    }
+
+    const hasFileText = normalizedAnswers.some((a) => a.label === "File Foto");
+    if (!hasFileText && photoSources.names.length > 0) {
+      normalizedAnswers.push({
+        label: "File Foto",
+        type: "text",
+        value: photoSources.names.join(", "),
+      });
+    }
+
+    return normalizedAnswers;
   };
 
   const showDeleteAlert = (item: Item) => {
@@ -1224,6 +1317,7 @@ export default function StageReportListClient({
       }
 
       const photoEntries: string[] = [];
+      const photoSources = collectPhotoSources(item);
 
       if (Array.isArray(item.answers)) {
         item.answers.forEach((answer: any) => {
@@ -1231,7 +1325,7 @@ export default function StageReportListClient({
           const label = answer.label;
           const type = String(answer.type || "").toLowerCase();
           if (type === "photo") {
-            const url = typeof answer.value === "string" ? answer.value : "";
+            const url = getRenderableImageUrl(answer.value) ?? "";
             if (url) photoEntries.push(url);
           } else {
             const value = answer.value == null ? "" : String(answer.value);
@@ -1240,14 +1334,8 @@ export default function StageReportListClient({
         });
       }
 
-      [item.fotoWajibName, item.fotoOpsionalName]
-        .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
-        .forEach((x) => photoEntries.push(x.trim()));
-      if (Array.isArray(item.files)) {
-        item.files.forEach((u) => {
-          if (typeof u === "string" && u.trim()) photoEntries.push(u.trim());
-        });
-      }
+      photoSources.urls.forEach((url) => photoEntries.push(url));
+      photoSources.names.forEach((name) => photoEntries.push(name));
 
       if (photoEntries.length > 0) {
         photoEntries.forEach((url, idxPhoto) => {
@@ -1851,9 +1939,13 @@ export default function StageReportListClient({
                                 <div className="text-sm font-medium text-gray-900 mb-2">{a.label}</div>
                                 {a.type === "photo" ? (
                                   (() => {
-                                    const url = typeof a.value === "string" ? a.value : "";
+                                    const url = getRenderableImageUrl(a.value) ?? "";
                                     if (!url) {
-                                      return <div className="text-sm text-gray-500 italic">Tidak ada foto</div>;
+                                      return (
+                                        <div className="text-sm text-gray-500 italic">
+                                          {a.value ? `File tersimpan: ${String(a.value)}` : "Tidak ada foto"}
+                                        </div>
+                                      );
                                     }
                                     return (
                                       <div className="flex items-center gap-3">
@@ -2316,9 +2408,13 @@ export default function StageReportListClient({
                                   <div className="text-sm font-medium text-gray-900 mb-2">{a.label}</div>
                                   {a.type === "photo" ? (
                                     (() => {
-                                      const url = typeof a.value === "string" ? a.value : "";
+                                      const url = getRenderableImageUrl(a.value) ?? "";
                                       if (!url) {
-                                        return <div className="text-sm text-gray-500 italic">Tidak ada foto</div>;
+                                        return (
+                                          <div className="text-sm text-gray-500 italic">
+                                            {a.value ? `File tersimpan: ${String(a.value)}` : "Tidak ada foto"}
+                                          </div>
+                                        );
                                       }
                                       return (
                                         <div className="flex items-center gap-3">

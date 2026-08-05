@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 
-type ProjectKey = "diana" | "bungtomo";
+type ProjectKey = "diana" | "bungtomo" | "bisma";
 const PROJECT_STORAGE_KEY = "selected_project";
 
 export default function DashboardClient({ initialProject }: { initialProject?: ProjectKey }) {
@@ -16,7 +16,7 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? (localStorage.getItem(PROJECT_STORAGE_KEY) as ProjectKey | null) : null;
-    if (saved === "diana" || saved === "bungtomo") {
+    if (saved === "diana" || saved === "bungtomo" || saved === "bisma") {
       setProject(saved);
     } else if (initialProject) {
       setProject(initialProject);
@@ -81,7 +81,7 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
               <p className="text-sm text-neutral-600 mt-2">Pilih proyek dan mulai akses laporan Anda.</p>
             </div>
             <div className="inline-flex items-center gap-2 rounded-2xl bg-white/80 ring-1 ring-neutral-200 shadow-sm p-2">
-              {(["diana", "bungtomo"] as const).map((p) => {
+              {(["diana", "bungtomo", "bisma"] as const).map((p) => {
                 const active = project === p;
                 return (
                   <button
@@ -92,7 +92,7 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
                       active ? "bg-gradient-to-r from-rose-500 to-red-600 text-white shadow" : "text-neutral-700 hover:bg-white"
                     ].join(" ")}
                   >
-                    {p === "diana" ? "Proyek Diana" : "Proyek Bung Tomo"}
+                    {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : "Proyek Bung Tomo"}
                   </button>
                 );
               })}

@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props) {
 export default async function TahapDetail({ params, searchParams }: Props) {
   const { tahap } = await params;
   const sp = searchParams ? await searchParams : undefined;
-  const projectParam = sp?.project === "bungtomo" ? "bungtomo" : "diana";
+  const projectParam = sp?.project === "bungtomo" ? "bungtomo" : sp?.project === "bisma" ? "bisma" : "diana";
   const stageIdParam = sp?.stageId;
   const tahapLabel = `Tahap ${tahap}`;
 

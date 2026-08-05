@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { getFirebaseClient } from "@/lib/firebaseClient";
 import { doc, getDoc } from "firebase/firestore";
 
-type ProjectKey = "diana" | "bungtomo";
+type ProjectKey = "diana" | "bungtomo" | "bisma";
 
 const CONFIG_KEYS: Record<ProjectKey, string> = {
   diana: "stages_config",
   bungtomo: "stages_config_bungtomo",
+  bisma: "stages_config_bisma",
 };
 
 export default function StageTitleClient({
@@ -33,7 +34,7 @@ export default function StageTitleClient({
     if (!fb) return;
     (async () => {
       try {
-        const key = CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : "diana"];
+        const key = CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana"];
         const snap = await getDoc(doc(fb.db, "config", key));
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
         let name = "";

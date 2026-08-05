@@ -5,10 +5,11 @@ import { useEffect, useState, useMemo } from "react";
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { getFirebaseClient } from "@/lib/firebaseClient";
 
-type ProjectKey = "diana" | "bungtomo";
+type ProjectKey = "diana" | "bungtomo" | "bisma";
 const CONFIG_KEYS: Record<ProjectKey, string> = {
   diana: "stages_config",
   bungtomo: "stages_config_bungtomo",
+  bisma: "stages_config_bisma",
 };
 
 interface ProgressData {
@@ -18,8 +19,8 @@ interface ProgressData {
 }
 
 export default function ViewerLaporanProgressClient({ project = "diana" }: { project?: ProjectKey }) {
-  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : "diana";
-  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
   const [progressData, setProgressData] = useState<ProgressData[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterMonth, setFilterMonth] = useState<string>("");

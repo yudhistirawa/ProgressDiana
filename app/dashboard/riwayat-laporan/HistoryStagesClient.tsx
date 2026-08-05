@@ -5,10 +5,11 @@ import { getFirebaseClient } from "@/lib/firebaseClient";
 import { doc, getDoc } from "firebase/firestore";
 
 type StageItem = { id: number; name: string };
-type ProjectKey = "diana" | "bungtomo";
+type ProjectKey = "diana" | "bungtomo" | "bisma";
 const CONFIG_KEYS: Record<ProjectKey, string> = {
   diana: "stages_config",
   bungtomo: "stages_config_bungtomo",
+  bisma: "stages_config_bisma",
 };
 
 export default function HistoryStagesClient({ project = "diana" }: { project?: ProjectKey }) {
@@ -19,7 +20,7 @@ export default function HistoryStagesClient({ project = "diana" }: { project?: P
     if (!fb) return;
     (async () => {
       try {
-        const key = CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : "diana"];
+        const key = CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana"];
         const ref = doc(fb.db, "config", key);
         const snap = await getDoc(ref);
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
@@ -38,7 +39,7 @@ export default function HistoryStagesClient({ project = "diana" }: { project?: P
   if (items.length === 0) {
     return (
       <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-6 text-center text-sm text-neutral-500">
-        Belum ada tahap untuk proyek {project === "bungtomo" ? "Bung Tomo" : "Diana"}. Admin dapat menambah dari menu Kelola Formulir & Tahapan.
+        Belum ada tahap untuk proyek {project === "bungtomo" ? "Bung Tomo" : project === "bisma" ? "Bisma" : "Diana"}. Admin dapat menambah dari menu Kelola Formulir & Tahapan.
       </div>
     );
   }
@@ -48,7 +49,7 @@ export default function HistoryStagesClient({ project = "diana" }: { project?: P
       {items.map((stage, idx) => (
         <Link
           key={stage.id}
-          href={`/dashboard/riwayat-laporan/${stage.id}?project=${project === "bungtomo" ? "bungtomo" : "diana"}`}
+          href={`/dashboard/riwayat-laporan/${stage.id}?project=${project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana"}`}
           className="group rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 p-3 sm:p-4 text-center backdrop-blur hover:-translate-y-0.5"
         >
           <div

@@ -3,11 +3,12 @@
 import { useState } from "react";
 import ProgressGridClient from "./ProgressGridClient";
 
-type ProjectKey = "diana" | "bungtomo";
+type ProjectKey = "diana" | "bungtomo" | "bisma";
 
 const PROJECTS: Record<ProjectKey, { key: ProjectKey; label: string; badge: string }> = {
   diana: { key: "diana", label: "Proyek Diana", badge: "Aktif" },
   bungtomo: { key: "bungtomo", label: "Proyek Bung Tomo", badge: "Baru" },
+  bisma: { key: "bisma", label: "Proyek Bisma", badge: "Baru" },
 };
 
 export default function ProjectGridSection() {

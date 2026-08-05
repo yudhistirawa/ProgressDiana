@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getFirebaseClient } from "@/lib/firebaseClient";
 import { collection, getDocs, query } from "firebase/firestore";
 
-type ProjectKey = "diana" | "bungtomo";
+type ProjectKey = "diana" | "bungtomo" | "bisma";
 
 interface DailyData {
   tanggal: string;
@@ -13,8 +13,8 @@ interface DailyData {
 }
 
 export default function ViewerDataHarianClient({ project = "diana" }: { project?: ProjectKey }) {
-  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : "diana";
-  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
   const [dailyStats, setDailyStats] = useState<DailyData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);

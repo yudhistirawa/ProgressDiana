@@ -6,6 +6,6 @@ export const metadata = {
 };
 
 export default function DashboardPage({ searchParams }: { searchParams?: { project?: string } }) {
-  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "diana" ? "diana" : undefined;
+  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "diana" ? "diana" : searchParams?.project === "bisma" ? "bisma" : undefined;
   return <DashboardClient initialProject={projectParam} />;
 }

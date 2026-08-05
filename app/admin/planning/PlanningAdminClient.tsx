@@ -13,7 +13,7 @@ export default function PlanningAdminClient() {
   useEffect(() => {
     const saved =
       typeof window !== "undefined" ? (localStorage.getItem(PROJECT_STORAGE_KEY) as ProjectKey | null) : null;
-    if (saved === "bungtomo" || saved === "diana") setProject(saved);
+    if (saved === "bungtomo" || saved === "diana" || saved === "bisma") setProject(saved);
   }, []);
 
   const handleProject = (p: ProjectKey) => {
@@ -40,7 +40,7 @@ export default function PlanningAdminClient() {
                   active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white",
                 ].join(" ")}
               >
-                {p.key === "diana" ? "Proyek Diana" : "Proyek Bung Tomo"}
+                {p.key === "diana" ? "Proyek Diana" : p.key === "bisma" ? "Proyek Bisma" : "Proyek Bung Tomo"}
               </button>
             );
           })}

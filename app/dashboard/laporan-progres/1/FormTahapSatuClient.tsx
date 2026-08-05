@@ -320,15 +320,15 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
 }
 
-type ProjectKey = "diana" | "bungtomo";
+type ProjectKey = "diana" | "bungtomo" | "bisma";
 type Props = { stage?: number; project?: ProjectKey; stageId?: number | string | null };
 
 export default function FormTahapSatuClient({ stage = 1, project = "diana", stageId }: Props) {
-  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : "diana";
-  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
-  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : "Progress_Diana_Notifikasi";
-  const storagePrefix = projectKey === "bungtomo" ? "Progress_BungTomo" : "Progress_Diana";
-  const configKey = projectKey === "bungtomo" ? "stages_config_bungtomo" : "stages_config";
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
+  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : projectKey === "bisma" ? "Progress_Bisma_Notifikasi" : "Progress_Diana_Notifikasi";
+  const storagePrefix = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
+  const configKey = projectKey === "bungtomo" ? "stages_config_bungtomo" : projectKey === "bisma" ? "stages_config_bisma" : "stages_config";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileWajibName, setFileWajibName] = useState("");
   const [fileOpsionalName, setFileOpsionalName] = useState("");
@@ -1043,6 +1043,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
               <option>Diana</option>
               <option>Grahaku</option>
               <option>Bung Tomo</option>
+              <option>Bisma</option>
             </select>
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
