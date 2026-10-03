@@ -46,9 +46,9 @@ async function addGeotagToImage(file: File, lat: number, lon: number, accuracy?:
           ctx.fillStyle = 'white';
           ctx.textAlign = 'left';
 
-          // Title with Progress Diana branding
+          // Use neutral branding so a project name can never be stamped incorrectly
           ctx.font = 'bold 16px Arial';
-          ctx.fillText('📍 PROGRESS DIANA - GEOSTAMP', 20, canvas.height - overlayHeight + 25);
+          ctx.fillText('📍 DOKUMENTASI PROGRES - GEOSTAMP', 20, canvas.height - overlayHeight + 25);
 
           // Content
           ctx.font = '12px Arial';
@@ -144,7 +144,7 @@ async function addGeotagToImage(file: File, lat: number, lon: number, accuracy?:
           // Add system info
           ctx.font = '10px Arial';
           ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-          ctx.fillText('Sistem Dokumentasi Progress - Diana', 20, yPos);
+          ctx.fillText('Sistem Dokumentasi Progres', 20, yPos);
 
           // Convert canvas to blob
           const geotaggedBlob = await new Promise<Blob | null>((resolve) => {
@@ -1419,5 +1419,4 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
     </div>
   );
 }
-
 

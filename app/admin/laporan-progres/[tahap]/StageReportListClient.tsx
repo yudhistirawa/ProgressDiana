@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ExcelJS from "exceljs";
-import { getFirebaseClient } from "../../../../lib/firebaseClient";
+import { getFirebaseClient, getFirebaseStorage } from "../../../../lib/firebaseClient";
 
 type ProjectKey = "diana" | "bungtomo" | "bisma";
 
@@ -168,6 +168,55 @@ export default function StageReportListClient({
   const pageSize = 5;
   const [selected, setSelected] = useState<Item | null>(null);
   const [editItem, setEditItem] = useState<Item | null>(null);
+  const [editPhotos, setEditPhotos] = useState<Record<number, { file: File; preview: string }>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  const savingEditRef = useRef(false);
+  const photoPreviews = useRef<Record<number, string>>({});
+
+  useEffect(() => {
+    setEditPhotos({});
+    return () => {
+      Object.values(photoPreviews.current).forEach((url) => URL.revokeObjectURL(url));
+      photoPreviews.current = {};
+    };
+  }, [editItem?.id]);
+
+  const renderPhotoEditor = (index: number, value: unknown, label: string) => {
+    const pending = editPhotos[index];
+    const url = pending?.preview || getRenderableImageUrl(value);
+    return (
+      <div className="space-y-3">
+        {url ? (
+          <img src={url} alt={label || "Foto"} className="h-32 w-32 object-cover rounded-lg ring-1 ring-gray-200" />
+        ) : (
+          <div className="text-sm text-gray-500 italic">{value ? `File tersimpan: ${String(value)}` : "Tidak ada foto"}</div>
+        )}
+        <label className="block text-sm font-medium text-blue-700">
+          {value || pending ? "Ganti foto" : "Tambahkan foto"}
+          <input
+            type="file"
+            accept="image/*"
+            disabled={savingEdit}
+            className="mt-2 block w-full text-sm text-gray-600"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+              if (!file.type.startsWith("image/")) {
+                alert("Silakan pilih file gambar.");
+                return;
+              }
+              if (photoPreviews.current[index]) URL.revokeObjectURL(photoPreviews.current[index]);
+              const preview = URL.createObjectURL(file);
+              photoPreviews.current[index] = preview;
+              setEditPhotos((current) => ({ ...current, [index]: { file, preview } }));
+            }}
+          />
+        </label>
+        {pending && <div className="text-xs text-gray-500">{pending.file.name} — diunggah saat Simpan Perubahan.</div>}
+      </div>
+    );
+  };
   const [editNama, setEditNama] = useState("");
   const [editLokasi, setEditLokasi] = useState("");
   const [editPekerjaan, setEditPekerjaan] = useState("");
@@ -346,7 +395,7 @@ export default function StageReportListClient({
       // Keep focus in modal
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
-          setEditItem(null);
+          if (!savingEditRef.current) setEditItem(null);
         } else if (e.key === 'Tab') {
           // Trap focus within modal
           const modalElements = target.querySelectorAll(
@@ -384,7 +433,7 @@ export default function StageReportListClient({
 
     const digits = trimmed.match(/\d+/g);
     if (!digits || digits.length < 3) return "";
-    let [a, b, c] = digits;
+    const [a, b, c] = digits;
     const parse = (yearStr: string, monthStr: string, dayStr: string) => {
       const year = Number(yearStr);
       const month = Number(monthStr);
@@ -2129,7 +2178,7 @@ export default function StageReportListClient({
           {/* Enhanced Backdrop */}
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setEditItem(null)}
+            onClick={() => { if (!savingEditRef.current) setEditItem(null); }}
           />
 
           {/* Modal Container */}
@@ -2159,7 +2208,7 @@ export default function StageReportListClient({
                   </div>
 
                   <button
-                    onClick={() => setEditItem(null)}
+                    onClick={() => { if (!savingEditRef.current) setEditItem(null); }}
                     className="flex h-10 w-10 items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200"
                     aria-label="Tutup"
                   >
@@ -2272,133 +2321,155 @@ export default function StageReportListClient({
                       className="grid gap-3"
                       onSubmit={async (e) => {
                         e.preventDefault();
-                        if (!editItem) return;
+                        if (!editItem || savingEditRef.current) return;
 
                         const fb = getFirebaseClient();
-                        if (!fb) return;
+                        if (!fb) { alert("Firebase belum tersedia. Silakan coba lagi."); return; }
+                        savingEditRef.current = true;
+                        setSavingEdit(true);
+                        try {
 
-                        // Use the updated answers from editItem if available, otherwise rebuild from form state
-                        let updatedAnswers: { label: string; type: string; value: any }[];
+                          // Use the updated answers from editItem if available, otherwise rebuild from form state
+                          let updatedAnswers: { label: string; type: string; value: any }[];
 
-                        if (Array.isArray(editItem.answers) && editItem.answers.length > 0) {
-                          // Use the answers array that was updated by the form inputs
-                          updatedAnswers = [...editItem.answers];
-                        } else {
-                          // Fallback to rebuilding from form state variables
-                          updatedAnswers = [];
+                          if (Array.isArray(editItem.answers) && editItem.answers.length > 0) {
+                            // Use the answers array that was updated by the form inputs
+                            updatedAnswers = [...editItem.answers];
+                          } else {
+                            // Fallback to rebuilding from form state variables
+                            updatedAnswers = [];
 
-                          // Add all current form values to answers array
-                          if (editNama) {
-                            updatedAnswers.push({ label: "nama", type: "text", value: editNama });
-                          }
-                          if (editLokasi) {
-                            updatedAnswers.push({ label: "lokasi", type: "text", value: editLokasi });
-                          }
-                          if (editPekerjaan) {
-                            if (isStage4) {
-                              updatedAnswers.push({ label: "kode benda", type: "text", value: editPekerjaan });
-                            } else {
-                              updatedAnswers.push({ label: "pekerjaan", type: "text", value: editPekerjaan });
+                            // Add all current form values to answers array
+                            if (editNama) {
+                              updatedAnswers.push({ label: "nama", type: "text", value: editNama });
                             }
-                          }
-                          if (editElemenPekerjaan) {
-                            if (isStage4) {
-                              updatedAnswers.push({ label: "mutu beton", type: "text", value: editElemenPekerjaan });
-                            } else {
-                              updatedAnswers.push({ label: "elemen pekerjaan", type: "text", value: editElemenPekerjaan });
+                            if (editLokasi) {
+                              updatedAnswers.push({ label: "lokasi", type: "text", value: editLokasi });
                             }
-                          }
-                          if (isStage4 && editSudutPukul) {
-                            updatedAnswers.push({ label: "sudut pukul", type: "text", value: editSudutPukul });
-                          }
-                          if (editTanggal) {
-                            updatedAnswers.push({ label: "tanggal", type: "text", value: editTanggal });
-                          }
-                        }
-
-                        // Preserve existing photo answers that weren't edited
-                        if (Array.isArray(editItem.answers)) {
-                          editItem.answers.forEach(existingAnswer => {
-                            if (existingAnswer.type === "photo" && existingAnswer.value) {
-                              // Check if this photo answer already exists in updated answers
-                              const alreadyExists = updatedAnswers.some(newAnswer =>
-                                newAnswer.type === "photo" && newAnswer.value === existingAnswer.value
-                              );
-                              if (!alreadyExists) {
-                                updatedAnswers.push(existingAnswer);
+                            if (editPekerjaan) {
+                              if (isStage4) {
+                                updatedAnswers.push({ label: "kode benda", type: "text", value: editPekerjaan });
+                              } else {
+                                updatedAnswers.push({ label: "pekerjaan", type: "text", value: editPekerjaan });
                               }
                             }
-                          });
-                        }
+                            if (editElemenPekerjaan) {
+                              if (isStage4) {
+                                updatedAnswers.push({ label: "mutu beton", type: "text", value: editElemenPekerjaan });
+                              } else {
+                                updatedAnswers.push({ label: "elemen pekerjaan", type: "text", value: editElemenPekerjaan });
+                              }
+                            }
+                            if (isStage4 && editSudutPukul) {
+                              updatedAnswers.push({ label: "sudut pukul", type: "text", value: editSudutPukul });
+                            }
+                            if (editTanggal) {
+                              updatedAnswers.push({ label: "tanggal", type: "text", value: editTanggal });
+                            }
+                          }
 
-                        const answersPayload = (updatedAnswers || [])
-                          .filter((ans): ans is { label: string; type: string; value: any } => Boolean(ans && ans.label))
-                          .map((ans) => ({
-                            ...ans,
-                            value: ans.value === undefined ? "" : ans.value,
-                          }));
+                          const nextFiles = [...(editItem.files || [])];
+                          if (Object.keys(editPhotos).length > 0) {
+                            const storage = await getFirebaseStorage();
+                            if (!storage) throw new Error("Firebase Storage belum tersedia.");
+                            const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+                            for (const [key, photo] of Object.entries(editPhotos)) {
+                              const index = Number(key);
+                              const previous = editItem.answers?.[index];
+                              const safeName = photo.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+                              const photoRef = ref(storage, `${progressCollection}/${editItem.id}/${index + 1}_${crypto.randomUUID()}_${safeName}`);
+                              await uploadBytes(photoRef, photo.file, { contentType: photo.file.type });
+                              const url = await getDownloadURL(photoRef);
+                              if (previous?.type === "photo") {
+                                updatedAnswers[index] = { ...previous, value: url };
+                                for (let i = nextFiles.length - 1; i >= 0; i--) {
+                                  if (nextFiles[i] === previous.value) nextFiles.splice(i, 1);
+                                }
+                              } else {
+                                updatedAnswers.push({ label: "Upload Foto", type: "photo", value: url });
+                              }
+                              nextFiles.push(url);
+                            }
+                          }
 
-                        const sanitizedTanggal =
-                          editTanggalIso || editTanggal || editItem.tanggal || "";
+                          const answersPayload = (updatedAnswers || [])
+                            .filter((ans): ans is { label: string; type: string; value: any } => Boolean(ans && ans.label))
+                            .map((ans) => ({
+                              ...ans,
+                              value: ans.value === undefined ? "" : ans.value,
+                            }));
 
-                        // Update the editItem with current form values for immediate UI feedback
-                        const updatedItem = {
-                          ...editItem,
-                          nama: editNama,
-                          lokasi: editLokasi,
-                          pekerjaan: editPekerjaan,
-                          elemenPekerjaan: editElemenPekerjaan,
-                          tanggal: sanitizedTanggal,
-                          answers: answersPayload,
-                        };
+                          const sanitizedTanggal =
+                            editTanggalIso || editTanggal || editItem.tanggal || "";
 
-                        try {
-                          const { doc, updateDoc } = await import("firebase/firestore");
-                          const docRef = doc(fb.db, progressCollection, editItem.id);
-
-                          // Prepare update data with both legacy fields and answers array
-                          const updateData: any = {
-                            nama: editNama || "",
-                            lokasi: editLokasi || "",
-                            pekerjaan: editPekerjaan || "",
-                            elemenPekerjaan: editElemenPekerjaan || "",
-                            tanggal: sanitizedTanggal || "",
+                          // Update the editItem with current form values for immediate UI feedback
+                          const updatedItem = {
+                            ...editItem,
+                            nama: editNama,
+                            lokasi: editLokasi,
+                            pekerjaan: editPekerjaan,
+                            elemenPekerjaan: editElemenPekerjaan,
+                            tanggal: sanitizedTanggal,
                             answers: answersPayload,
+                            files: nextFiles,
                           };
 
-                          // Only update fields that have values
-                          Object.keys(updateData).forEach(key => {
-                            if (updateData[key] === "" || updateData[key] === null || updateData[key] === undefined) {
-                              delete updateData[key];
-                            }
-                          });
-
-                          await updateDoc(docRef, updateData);
-
-                          // Update notification if exists
                           try {
-                            const notifRef = doc(fb.db, notifCollection, editItem.id);
-                            const message = isStage4
-                              ? `${updatedItem.pekerjaan || editItem.pekerjaan} • ${updatedItem.elemenPekerjaan || editItem.elemenPekerjaan} • ${updatedItem.lokasi || editItem.lokasi} • ${editSudutPukul || "-"}`
-                              : `${updatedItem.pekerjaan || editItem.pekerjaan} • ${updatedItem.lokasi || editItem.lokasi}`;
-                            await updateDoc(notifRef, {
-                              message,
-                              tanggal: updatedItem.tanggal,
-                            });
-                          } catch {}
+                            const { doc, updateDoc } = await import("firebase/firestore");
+                            const docRef = doc(fb.db, progressCollection, editItem.id);
 
-                          // Update local state
-                          const next = items.map((x) =>
-                            x.id === editItem.id ? updatedItem : x
-                          );
-                          setItems(next);
-                          setEditItem(null);
+                            // Prepare update data with both legacy fields and answers array
+                            const updateData: any = {
+                              nama: editNama || "",
+                              lokasi: editLokasi || "",
+                              pekerjaan: editPekerjaan || "",
+                              elemenPekerjaan: editElemenPekerjaan || "",
+                              tanggal: sanitizedTanggal || "",
+                              answers: answersPayload,
+                              files: nextFiles,
+                            };
+
+                            // Only update fields that have values
+                            Object.keys(updateData).forEach(key => {
+                              if (updateData[key] === "" || updateData[key] === null || updateData[key] === undefined) {
+                                delete updateData[key];
+                              }
+                            });
+
+                            await updateDoc(docRef, updateData);
+
+                            // Update notification if exists
+                            try {
+                              const notifRef = doc(fb.db, notifCollection, editItem.id);
+                              const message = isStage4
+                                ? `${updatedItem.pekerjaan || editItem.pekerjaan} • ${updatedItem.elemenPekerjaan || editItem.elemenPekerjaan} • ${updatedItem.lokasi || editItem.lokasi} • ${editSudutPukul || "-"}`
+                                : `${updatedItem.pekerjaan || editItem.pekerjaan} • ${updatedItem.lokasi || editItem.lokasi}`;
+                              await updateDoc(notifRef, {
+                                message,
+                                tanggal: updatedItem.tanggal,
+                              });
+                            } catch {}
+
+                            // Update local state
+                            const next = items.map((x) =>
+                              x.id === editItem.id ? updatedItem : x
+                            );
+                            setItems(next);
+                            setEditItem(null);
+                          } catch (err) {
+                            console.error("Error updating:", err);
+                            alert("Gagal memperbarui laporan");
+                          }
                         } catch (err) {
-                          console.error("Error updating:", err);
-                          alert("Gagal memperbarui laporan");
+                          console.error("Error uploading report photos:", err);
+                          alert("Gagal mengunggah foto. Perubahan belum disimpan. Silakan coba lagi.");
+                        } finally {
+                          savingEditRef.current = false;
+                          setSavingEdit(false);
                         }
                       }}
                     >
+                      <fieldset disabled={savingEdit} className="grid gap-3 disabled:opacity-70">
                       <div className="grid gap-3">
                         {Array.isArray(editItem.answers) && editItem.answers && editItem.answers.length > 0 ? (
                           editItem.answers.map((a, idx) => (
@@ -2407,25 +2478,7 @@ export default function StageReportListClient({
                                 <div className="flex-1">
                                   <div className="text-sm font-medium text-gray-900 mb-2">{a.label}</div>
                                   {a.type === "photo" ? (
-                                    (() => {
-                                      const url = getRenderableImageUrl(a.value) ?? "";
-                                      if (!url) {
-                                        return (
-                                          <div className="text-sm text-gray-500 italic">
-                                            {a.value ? `File tersimpan: ${String(a.value)}` : "Tidak ada foto"}
-                                          </div>
-                                        );
-                                      }
-                                      return (
-                                        <div className="flex items-center gap-3">
-                                          <img src={url} alt={a.label || "Foto"} className="block h-16 w-16 object-cover rounded-lg ring-1 ring-gray-200 shadow-sm" />
-                                          <div className="flex-1 min-w-0">
-                                            <div className="text-xs text-gray-500 mb-1">Foto tidak dapat diedit</div>
-                                            <div className="text-xs text-gray-400">Foto hanya dapat dilihat</div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })()
+                                    renderPhotoEditor(idx, a.value, a.label)
                                   ) : (
                                     <input
                                       ref={idx === 0 ? firstInputRef : null}
@@ -2438,7 +2491,7 @@ export default function StageReportListClient({
                                       onChange={(e) => {
                                         const newValue = e.target.value;
                                         // Update the answers array
-                                        const updatedAnswers = [...(editItem.answers || [])];
+                                        const updatedAnswers = (editItem.answers || []).map((answer) => ({ ...answer }));
                                         if (updatedAnswers[idx]) {
                                           updatedAnswers[idx].value = newValue;
                                         }
@@ -2561,11 +2614,16 @@ export default function StageReportListClient({
                         )}
                       </div>
 
+                      <div className="bg-white border border-gray-200 rounded-xl p-4">
+                        <div className="text-sm font-medium text-gray-900 mb-2">Foto tambahan</div>
+                        {renderPhotoEditor(editItem.answers?.length || 0, null, "Foto tambahan")}
+                      </div>
+
                       {/* Professional Action Buttons */}
                       <div className="flex flex-col sm:flex-row justify-end gap-3 pt-8 border-t border-gray-200">
                         <button
                           type="button"
-                          onClick={() => setEditItem(null)}
+                          onClick={() => { if (!savingEditRef.current) setEditItem(null); }}
                           className="px-6 py-3 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200"
                         >
                           Batal
@@ -2578,10 +2636,11 @@ export default function StageReportListClient({
                             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
                               <path d="M5 13l4 4L19 7"/>
                             </svg>
-                            Simpan Perubahan
+                            {savingEdit ? "Menyimpan..." : "Simpan Perubahan"}
                           </span>
                         </button>
                       </div>
+                      </fieldset>
                     </form>
                   </div>
 
