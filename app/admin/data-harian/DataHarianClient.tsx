@@ -1,155 +1,24 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { getFirebaseClient } from "@/lib/firebaseClient";
-import { collection, getDocs, query, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+
+import { useDailyData } from "@/lib/useDailyData";
 
 type ProjectKey = "diana" | "bungtomo" | "bisma";
-
-interface DailyData {
-  tanggal: string;
-  jumlah: number;
-  items: any[];
-}
 
 export default function DataHarianClient({ project = "diana" }: { project?: ProjectKey }) {
   const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana";
   const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
-  const [dailyStats, setDailyStats] = useState<DailyData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const { dailyStats, loading, error, filterMonth, setFilterMonth, filterYear, setFilterYear,
+    selectedDate, selectedItems, detailLoading, loadDailyData, handleDateClick, closeModal } = useDailyData(progressCollection);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
-  const [filterMonth, setFilterMonth] = useState<string>("");
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
   const [newCatatan, setNewCatatan] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-
-  const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
-
-  useEffect(() => {
-    loadDailyData();
-  }, [filterMonth, filterYear, projectKey]);
-
-  async function loadDailyData() {
-    setLoading(true);
-    try {
-      const fb = getFirebaseClient();
-      if (!fb) throw new Error("Firebase not initialized");
-
-      const col = collection(fb.db, progressCollection);
-      // We'll fetch documents and normalize tanggal values client-side
-      // because some documents store tanggal in different formats
-      const snapshot = await getDocs(query(col));
-      
-      // Helper: parse various date formats into epoch millis
-      const parseToEpoch = (v: any): number | null => {
-        if (v == null) return null;
-        if (typeof v === 'number') return v;
-        if (v instanceof Date) return v.getTime();
-        if (typeof v === 'object' && typeof v.toDate === 'function') {
-          try { return v.toDate().getTime(); } catch { return null; }
-        }
-        if (typeof v === 'string') {
-          const s = v.trim();
-          // ISO-like
-          if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-            const t = Date.parse(s);
-            if (!Number.isNaN(t)) return t;
-          }
-          // dd/MM/yyyy or dd-MM-yyyy [optional time with : or .]
-          const dmy = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[ T](\d{1,2})[:\.](\d{1,2})(?:[:\.](\d{1,2}))?)?/.exec(s);
-          if (dmy) {
-            const day = parseInt(dmy[1], 10);
-            const month = parseInt(dmy[2], 10) - 1;
-            const year = parseInt(dmy[3], 10);
-            const hour = dmy[4] ? parseInt(dmy[4], 10) : 0;
-            const min = dmy[5] ? parseInt(dmy[5], 10) : 0;
-            const sec = dmy[6] ? parseInt(dmy[6], 10) : 0;
-            const dt = new Date(year, month, day, hour, min, sec);
-            if (!Number.isNaN(dt.getTime())) return dt.getTime();
-          }
-          const t = Date.parse(s);
-          if (!Number.isNaN(t)) return t;
-        }
-        return null;
-      };
-
-      const epochToKey = (epoch: number) => {
-        const d = new Date(epoch);
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-      };
-      const dataByDate: { [key: string]: any[] } = {};
-
-      snapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        // Normalize tanggal to YYYY-MM-DD key when possible
-        const rawTanggal = data.tanggal;
-        let epoch = parseToEpoch(rawTanggal ?? data.createdAt ?? data.ts ?? null);
-        // Fallback: if createdAt is a number timestamp
-        if (epoch == null && typeof data.createdAt === 'number') epoch = data.createdAt;
-        const tanggalKey = epoch != null ? epochToKey(epoch) : (String(rawTanggal || "Tanggal tidak tersedia"));
-
-        if (!dataByDate[tanggalKey]) {
-          dataByDate[tanggalKey] = [];
-        }
-        // attach normalizedTanggal for display/logic if needed
-        dataByDate[tanggalKey].push({ id: doc.id, normalizedTanggal: tanggalKey, rawTanggal, ...data });
-      });
-
-      // Convert to array and sort by date (descending). If filterMonth/year present, apply client-side filter.
-      const stats: DailyData[] = Object.entries(dataByDate)
-        .map(([tanggal, items]) => ({
-          tanggal,
-          jumlah: items.length,
-          items,
-        }))
-        .filter((day) => {
-          if (!filterYear) return true;
-          const [y, m] = day.tanggal.split('-');
-          if (!m || !y) return false;
-          if (filterYear && filterMonth) return y === filterYear && m === filterMonth.padStart(2, '0');
-          if (filterYear) return y === filterYear;
-          return true;
-        })
-        .sort((a, b) => b.tanggal.localeCompare(a.tanggal));
-
-      setDailyStats(stats);
-    } catch (error) {
-      console.error("Error loading daily data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleDateClick(date: string, items: any[]) {
-    setSelectedDate(date);
-    // Sort items by time (jam field or upload time) from earliest to latest
-    const sortedItems = [...items].sort((a, b) => {
-      // Try to parse jam field first (e.g., "16.46.34" or "16:46:34")
-      const timeA = a.jam?.replace(/\./g, ':') || '';
-      const timeB = b.jam?.replace(/\./g, ':') || '';
-      
-      // If both have jam field, compare them
-      if (timeA && timeB) return timeA.localeCompare(timeB);
-      
-      // Fallback to createdAt/uploadedAt/ts timestamps
-      const timestampA = a.createdAt || a.uploadedAt || a.ts || 0;
-      const timestampB = b.createdAt || b.uploadedAt || b.ts || 0;
-      return timestampA - timestampB;
-    });
-    setSelectedItems(sortedItems);
-  }
-
-  function closeModal() {
-    setSelectedDate(null);
-    setSelectedItems([]);
-  }
 
   function openEditModal(item: any) {
     setEditingItem(item);
@@ -215,7 +84,7 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
           <div>
             <label className="block text-sm font-medium mb-1">Tahun</label>
             <select
-              value={filterYear}
+              value={filterYear} disabled={!filterMonth}
               onChange={(e) => setFilterYear(e.target.value)}
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
             >
@@ -234,7 +103,7 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
               onChange={(e) => setFilterMonth(e.target.value)}
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
             >
-              <option value="">Semua Bulan</option>
+              <option value="">7 hari terakhir</option>
               <option value="1">Januari</option>
               <option value="2">Februari</option>
               <option value="3">Maret</option>
@@ -252,7 +121,7 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
 
           <div className="flex items-end">
             <button
-              onClick={loadDailyData}
+              onClick={() => void loadDailyData()}
               className="w-full rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-medium hover:bg-red-700 transition-colors"
             >
               Refresh Data
@@ -261,6 +130,7 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
         </div>
 
         <div className="text-sm text-neutral-600">
+          {!filterMonth && <p className="mb-2">7 hari terakhir, termasuk hari ini. Pilih bulan untuk melihat data lama.</p>}
           Total Data: <span className="font-semibold text-neutral-900">{totalData}</span> laporan
         </div>
       </div>
@@ -307,7 +177,7 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button
-                          onClick={() => handleDateClick(day.tanggal, day.items)}
+                          onClick={() => handleDateClick(day.tanggal)}
                           className="inline-flex items-center gap-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 px-3 py-1.5 text-xs font-medium transition-colors"
                         >
                           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
@@ -325,8 +195,9 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
         </div>
       )}
 
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
       {/* Empty State */}
-      {!loading && dailyStats.length === 0 && (
+      {!loading && !error && dailyStats.length === 0 && (
         <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-8 text-center">
           <svg viewBox="0 0 24 24" className="mx-auto h-12 w-12 text-neutral-400" fill="currentColor">
             <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z" />
@@ -362,6 +233,7 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
               </div>
 
               <div className="space-y-4">
+                {detailLoading && <p role="status" className="text-sm text-neutral-600">Memuat detail...</p>}
                 {selectedItems.map((item, index) => (
                   <div
                     key={item.id || index}

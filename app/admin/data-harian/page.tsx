@@ -7,7 +7,7 @@ import DataHarianClient from "./DataHarianClient";
 
 export default function DataHarianPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [project, setProject] = useState<"diana" | "bungtomo" | "bisma">("diana");
+  const [project, setProject] = useState<"diana" | "bungtomo" | "bisma" | null>(null);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-[#f9fbff] via-white to-[#fdf6ff] text-neutral-900">
@@ -130,7 +130,7 @@ export default function DataHarianPage() {
               })}
             </div>
           </div>
-          <DataHarianClient project={project} />
+          {project ? <DataHarianClient key={project} project={project} /> : <div className="rounded-2xl bg-white p-8 text-center text-neutral-600 ring-1 ring-neutral-200">Pilih proyek untuk melihat data masuk harian.</div>}
         </main>
       </div>
     </div>

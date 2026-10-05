@@ -12,7 +12,7 @@ const PROJECTS: Record<ProjectKey, { key: ProjectKey; label: string; badge: stri
 };
 
 export default function ProjectGridSection() {
-  const [project, setProject] = useState<ProjectKey>("diana");
+  const [project, setProject] = useState<ProjectKey | null>(null);
 
   return (
     <div className="space-y-4">
@@ -50,7 +50,13 @@ export default function ProjectGridSection() {
         </div>
       </div>
 
-      <ProgressGridClient project={project} />
+      {project ? (
+        <ProgressGridClient key={project} project={project} />
+      ) : (
+        <div className="rounded-2xl bg-white p-8 text-center text-neutral-600 ring-1 ring-neutral-200">
+          Pilih proyek untuk melihat laporan progres.
+        </div>
+      )}
     </div>
   );
 }

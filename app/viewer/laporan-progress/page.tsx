@@ -3,18 +3,13 @@
 import Link from "next/link";
 import ViewerLaporanProgressClient from "./ViewerLaporanProgressClient";
 import AvatarMenuClient from "@/app/admin/components/AvatarMenuClient";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type ProjectKey = "diana" | "bungtomo" | "bisma";
 const PROJECT_STORAGE_KEY = "viewer_selected_project";
 
 export default function ViewerLaporanProgressPage() {
-  const [project, setProject] = useState<ProjectKey>("diana");
-
-  useEffect(() => {
-    const saved = typeof window !== "undefined" ? (localStorage.getItem(PROJECT_STORAGE_KEY) as ProjectKey | null) : null;
-    if (saved === "bungtomo" || saved === "diana" || saved === "bisma") setProject(saved);
-  }, []);
+  const [project, setProject] = useState<ProjectKey | null>(null);
 
   const handleProject = (p: ProjectKey) => {
     setProject(p);
@@ -68,7 +63,13 @@ export default function ViewerLaporanProgressPage() {
           </div>
         </div>
 
-        <ViewerLaporanProgressClient project={project} />
+        {project ? (
+          <ViewerLaporanProgressClient key={project} project={project} />
+        ) : (
+          <div className="rounded-2xl bg-white p-8 text-center text-neutral-600 ring-1 ring-neutral-200">
+            Pilih proyek untuk melihat laporan progres.
+          </div>
+        )}
       </main>
     </div>
   );

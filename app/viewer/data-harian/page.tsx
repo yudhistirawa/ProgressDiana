@@ -3,18 +3,14 @@
 import Link from "next/link";
 import ViewerDataHarianClient from "./ViewerDataHarianClient";
 import AvatarMenuClient from "@/app/admin/components/AvatarMenuClient";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type ProjectKey = "diana" | "bungtomo" | "bisma";
 const PROJECT_STORAGE_KEY = "viewer_selected_project";
 
 export default function ViewerDataHarianPage() {
-  const [project, setProject] = useState<ProjectKey>("diana");
+  const [project, setProject] = useState<ProjectKey | null>(null);
 
-  useEffect(() => {
-    const saved = typeof window !== "undefined" ? (localStorage.getItem(PROJECT_STORAGE_KEY) as ProjectKey | null) : null;
-    if (saved === "bungtomo" || saved === "diana" || saved === "bisma") setProject(saved);
-  }, []);
 
   const handleProject = (p: ProjectKey) => {
     setProject(p);
@@ -68,7 +64,7 @@ export default function ViewerDataHarianPage() {
           </div>
         </div>
 
-        <ViewerDataHarianClient project={project} />
+        {project ? <ViewerDataHarianClient key={project} project={project} /> : <div className="rounded-2xl bg-white p-8 text-center text-neutral-600 ring-1 ring-neutral-200">Pilih proyek untuk melihat data masuk harian.</div>}
       </main>
     </div>
   );

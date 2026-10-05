@@ -1,138 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getFirebaseClient } from "@/lib/firebaseClient";
-import { collection, getDocs, query } from "firebase/firestore";
+import { useEffect } from "react";
+import { useDailyData } from "@/lib/useDailyData";
 
 type ProjectKey = "diana" | "bungtomo" | "bisma";
-
-interface DailyData {
-  tanggal: string;
-  jumlah: number;
-  items: any[];
-}
 
 export default function ViewerDataHarianClient({ project = "diana" }: { project?: ProjectKey }) {
   const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana";
   const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
-  const [dailyStats, setDailyStats] = useState<DailyData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedItems, setSelectedItems] = useState<any[]>([]);
-  const [filterMonth, setFilterMonth] = useState<string>("");
-  const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
+  const { dailyStats, loading, error, filterMonth, setFilterMonth, filterYear, setFilterYear,
+    selectedDate, selectedItems, detailLoading, loadDailyData, handleDateClick, closeModal } = useDailyData(progressCollection);
   const detailCardId = "viewer-detail-modal-card";
-
-  useEffect(() => {
-    loadDailyData();
-  }, [filterMonth, filterYear, projectKey]);
-
-  async function loadDailyData() {
-    setLoading(true);
-    try {
-      const fb = getFirebaseClient();
-      if (!fb) throw new Error("Firebase not initialized");
-
-      const col = collection(fb.db, progressCollection);
-      const snapshot = await getDocs(query(col));
-      
-      const parseToEpoch = (v: any): number | null => {
-        if (v == null) return null;
-        if (typeof v === 'number') return v;
-        if (v instanceof Date) return v.getTime();
-        if (typeof v === 'object' && typeof v.toDate === 'function') {
-          try { return v.toDate().getTime(); } catch { return null; }
-        }
-        if (typeof v === 'string') {
-          const s = v.trim();
-          // ISO-like
-          if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-            const t = Date.parse(s);
-            if (!Number.isNaN(t)) return t;
-          }
-          // dd/MM/yyyy or dd-MM-yyyy [optional time with : or .]
-          const dmy = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[ T](\d{1,2})[:\.](\d{1,2})(?:[:\.](\d{1,2}))?)?/.exec(s);
-          if (dmy) {
-            const day = parseInt(dmy[1], 10);
-            const month = parseInt(dmy[2], 10) - 1;
-            const year = parseInt(dmy[3], 10);
-            const hour = dmy[4] ? parseInt(dmy[4], 10) : 0;
-            const min = dmy[5] ? parseInt(dmy[5], 10) : 0;
-            const sec = dmy[6] ? parseInt(dmy[6], 10) : 0;
-            const dt = new Date(year, month, day, hour, min, sec);
-            if (!Number.isNaN(dt.getTime())) return dt.getTime();
-          }
-          const t = Date.parse(s);
-          if (!Number.isNaN(t)) return t;
-        }
-        return null;
-      };
-
-      const epochToKey = (epoch: number) => {
-        const d = new Date(epoch);
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-      };
-
-      const dataByDate: { [key: string]: any[] } = {};
-
-      snapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        const rawTanggal = data.tanggal;
-        // Fallback logic for date field
-        let epoch = parseToEpoch(rawTanggal ?? data.createdAt ?? data.ts ?? null);
-        if (epoch == null && typeof data.createdAt === 'number') epoch = data.createdAt;
-        const tanggalKey = epoch != null ? epochToKey(epoch) : (String(rawTanggal || "Tanggal tidak tersedia"));
-
-        if (!dataByDate[tanggalKey]) dataByDate[tanggalKey] = [];
-        // Push the document data with its ID
-        dataByDate[tanggalKey].push({ id: doc.id, ...data });
-      });
-
-      const stats: DailyData[] = Object.entries(dataByDate)
-        .map(([tanggal, items]) => ({ tanggal, jumlah: items.length, items }))
-        .filter((day) => {
-          // Pastikan hanya memproses entri dengan format tanggal yang valid (YYYY-MM-DD)
-          if (!/^\d{4}-\d{2}-\d{2}/.test(day.tanggal)) {
-            return false; // Abaikan entri dengan kunci tanggal tidak valid seperti "Tanggal tidak tersedia"
-          }
-
-          const [y, m] = day.tanggal.split('-');
-          // Terapkan filter tahun dan bulan jika ada
-          if (filterYear && filterMonth) return y === filterYear && m === String(filterMonth).padStart(2, '0');
-          if (filterYear) return y === filterYear;
-          return true;
-        })
-        .sort((a, b) => b.tanggal.localeCompare(a.tanggal));
-
-      setDailyStats(stats);
-    } catch (error) {
-      console.error("Error loading daily data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleDateClick(date: string, items: any[]) {
-    setSelectedDate(date);
-    // Sort items by time (jam field or upload time) from earliest to latest
-    const sortedItems = [...items].sort((a, b) => {
-      const timeA = a.jam?.replace(/\./g, ':') || '';
-      const timeB = b.jam?.replace(/\./g, ':') || '';
-      if (timeA && timeB) return timeA.localeCompare(timeB);
-      const timestampA = a.createdAt || a.uploadedAt || a.ts || 0;
-      const timestampB = b.createdAt || b.uploadedAt || b.ts || 0;
-      return timestampA - timestampB;
-    });
-    setSelectedItems(sortedItems);
-  }
-
-  function closeModal() {
-    setSelectedDate(null);
-    setSelectedItems([]);
-  }
 
   // Pastikan modal langsung terlihat tanpa user scroll manual
   useEffect(() => {
@@ -165,7 +43,7 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
           <div className="rounded-2xl p-4 ring-1 ring-neutral-100 bg-gradient-to-br from-white to-neutral-50 shadow-inner">
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Periode</p>
             <p className="text-sm text-neutral-700 mt-1">
-              {filterMonth ? new Date(0, parseInt(filterMonth)-1).toLocaleString('id-ID', { month: 'long' }) : 'Semua Bulan'} {filterYear}
+              {filterMonth ? `${new Date(0, parseInt(filterMonth)-1).toLocaleString('id-ID', { month: 'long' })} ${filterYear}` : '7 hari terakhir (termasuk hari ini)'}
             </p>
           </div>
         </div>
@@ -173,7 +51,7 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white/90 ring-1 ring-white/70 rounded-2xl p-4 shadow-sm">
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-neutral-600">Tahun</label>
-            <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className="w-full rounded-xl border-neutral-200 shadow-sm text-sm focus:border-rose-400 focus:ring-rose-300 bg-white">
+            <select value={filterYear} disabled={!filterMonth} onChange={(e) => setFilterYear(e.target.value)} className="w-full rounded-xl border-neutral-200 shadow-sm text-sm focus:border-rose-400 focus:ring-rose-300 bg-white">
               {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((year) => (
                 <option key={year} value={year}>{year}</option>
               ))}
@@ -182,14 +60,14 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-neutral-600">Bulan</label>
             <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full rounded-xl border-neutral-200 shadow-sm text-sm focus:border-rose-400 focus:ring-rose-300 bg-white">
-              <option value="">Semua Bulan</option>
+              <option value="">7 hari terakhir</option>
               {[...Array(12)].map((_, i) => (
                 <option key={i + 1} value={String(i + 1)}>{new Date(0, i).toLocaleString('id-ID', { month: 'long' })}</option>
               ))}
             </select>
           </div>
           <div className="flex items-end">
-            <button onClick={loadDailyData} disabled={loading} className="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white px-4 py-2.5 text-sm font-semibold shadow-lg shadow-rose-200/70 hover:from-rose-600 hover:to-red-700 transition-all disabled:bg-neutral-400 disabled:cursor-wait">
+            <button onClick={() => void loadDailyData()} disabled={loading} className="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white px-4 py-2.5 text-sm font-semibold shadow-lg shadow-rose-200/70 hover:from-rose-600 hover:to-red-700 transition-all disabled:bg-neutral-400 disabled:cursor-wait">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
                 <path d="M5 4a1 1 0 0 1 1-1h4v2H7v4H5V4Zm13 6V6h-3V4h4a1 1 0 0 1 1 1v5h-2Zm-2 7v-3h2v4a1 1 0 0 1-1 1h-4v-2h3ZM7 18v-4H5v4a1 1 0 0 0 1 1h4v-2H7Z" />
               </svg>
@@ -238,7 +116,7 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button onClick={() => handleDateClick(day.tanggal, day.items)} className="inline-flex items-center gap-1 rounded-full bg-white hover:bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-800 transition-colors ring-1 ring-neutral-200 shadow-sm">
+                          <button onClick={() => handleDateClick(day.tanggal)} className="inline-flex items-center gap-1 rounded-full bg-white hover:bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-800 transition-colors ring-1 ring-neutral-200 shadow-sm">
                             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" /></svg>
                             Lihat Detail
                           </button>
@@ -252,8 +130,9 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
           </div>
         )}
 
-        {/* Empty State */}
-        {!loading && dailyStats.length === 0 && (
+        {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
+      {/* Empty State */}
+        {!loading && !error && dailyStats.length === 0 && (
           <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-8 text-center">
             <svg viewBox="0 0 24 24" className="mx-auto h-12 w-12 text-neutral-400" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z" /></svg>
             <p className="mt-2 text-neutral-600">Tidak ada data untuk periode yang dipilih</p>
@@ -278,6 +157,7 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
                 Total: <span className="font-semibold text-neutral-900">{selectedItems.length}</span> laporan
               </div>
               <div className="space-y-4">
+                {detailLoading && <p role="status" className="text-sm text-neutral-600">Memuat detail...</p>}
                 {selectedItems.map((item, index) => (
                   <div key={item.id} className="rounded-xl border border-neutral-200 bg-white p-5">
                     <div className="mb-4 flex items-start justify-between border-b border-neutral-200 pb-3">
