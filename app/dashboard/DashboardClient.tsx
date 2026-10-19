@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import MaterialNavLink from "@/components/MaterialNavLink";
 import LogoutLink from "@/components/LogoutLink";
 import Image from "next/image";
 import LogoImg from "@/Logo/Logo_BGD__1_-removebg-preview.png";
@@ -70,6 +71,7 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
 
       {/* Content */}
       <main className="relative mx-auto max-w-6xl px-4 pb-24 sm:pb-12 pt-6 md:pt-8 space-y-8">
+        <nav aria-label="Menu proyek" className="flex flex-wrap items-center gap-3"><Link href="/dashboard" className="text-sm">Beranda</Link><MaterialNavLink admin={false} /></nav>
         {/* Hero */}
         <div className="relative overflow-hidden rounded-3xl bg-white/85 backdrop-blur ring-1 ring-white/70 shadow-lg shadow-rose-50/60">
           <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-rose-100/70 blur-2xl" />
@@ -171,6 +173,7 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
               </div>
             </div>
           </Link>
+          <Link href="/dashboard/material" className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-neutral-200 hover:shadow-lg"><h3 className="text-lg font-semibold">Material</h3><p className="mt-2 text-sm text-neutral-600">Pilih proyek, lihat sisa stok, dan catat pemakaian material beserta foto.</p></Link>
         </section>
 
         {/* Tips */}

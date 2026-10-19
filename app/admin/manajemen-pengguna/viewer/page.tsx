@@ -1,4 +1,6 @@
 "use client";
+import MaterialNavLink from "@/components/MaterialNavLink";
+
 
 import UsersClient from "../UsersClient";
 import Link from "next/link";
@@ -52,6 +54,7 @@ export default function ViewerPage() {
               <Link href="/admin/manajemen-pengguna" className="rounded-lg bg-red-600 text-white px-3 py-2">Manajemen Pengguna</Link>
               <Link href="/admin/formulir-tahapan" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Kelola Formulir & Tahapan</Link>
               <Link href="/admin/sampah" className="rounded-lg ring-1 ring-neutral-300 px-3 py-2 hover:bg-neutral-50">Tempat Sampah</Link>
+              <MaterialNavLink />
             </nav>
           </div>
         </aside>

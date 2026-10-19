@@ -1,4 +1,5 @@
-﻿import Link from "next/link";
+﻿import MaterialNavLink from "@/components/MaterialNavLink";
+import Link from "next/link";
 import AvatarMenuClient from "../components/AvatarMenuClient";
 import PlanningAdminClient from "./PlanningAdminClient";
 
@@ -68,6 +69,7 @@ export default function AdminPlanningPage() {
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600" aria-hidden><svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M9 3a1 1 0 0 0-1 1v1H4v2h16V5h-4V4a1 1 0 0 0-1-1H9Zm-4 6v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9H5Zm3 2h2v8H8v-8Zm6 0h2v8h-2v-8Z" /></svg></span>
                 Tempat Sampah
               </Link>
+              <MaterialNavLink />
             </nav>
           </div>
         </aside>

@@ -1,4 +1,5 @@
-﻿import Link from "next/link";
+﻿import MaterialNavLink from "@/components/MaterialNavLink";
+import Link from "next/link";
 import AvatarMenuClient from "../components/AvatarMenuClient";
 
 export const metadata = {
@@ -96,12 +97,14 @@ export default function AdminDashboard() {
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600" aria-hidden><svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M9 3a1 1 0 0 0-1 1v1H4v2h16V5h-4V4a1 1 0 0 0-1-1H9Zm-4 6v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9H5Zm3 2h2v8H8v-8Zm6 0h2v8h-2v-8Z" /></svg></span>
                 Tempat Sampah
               </Link>
+              <MaterialNavLink />
             </nav>
           </div>
         </aside>
 
         {/* Main content */}
         <main className="col-span-12 sm:col-span-8 lg:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Link href="/admin/material" className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-neutral-200 hover:shadow-lg"><div className="text-lg font-semibold">Material</div><p className="mt-2 text-sm text-neutral-500">Kelola stok masuk, pemakaian, koreksi, dan rekap material per proyek.</p></Link>
           <Link href="/admin/planning" className="group rounded-2xl ring-1 ring-white/70 bg-white/90 shadow-lg shadow-emerald-50/70 hover:shadow-xl transition-all duration-200 p-6 text-left backdrop-blur hover:-translate-y-0.5">
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-2xl grid place-items-center bg-gradient-to-br from-emerald-50 to-slate-100 ring-1 ring-neutral-200 text-neutral-800 group-hover:scale-105 transition-transform" aria-hidden>

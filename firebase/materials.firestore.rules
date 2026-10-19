@@ -1,0 +1,143 @@
+// Integrate the match block below into the existing /databases/{database}/documents
+// block. This standalone file is also usable by an isolated emulator test project.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /materialProjects/{project} {
+      function validProject() { return project in ['diana', 'bungtomo', 'bisma']; }
+      function role() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role; }
+      function actorLabel() {
+        let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+        return profile.get('name', '') is string && profile.get('name', '') != '' ? profile.name
+          : profile.get('nama', '') is string && profile.get('nama', '') != '' ? profile.nama
+          : profile.get('username', '') is string && profile.get('username', '') != '' ? profile.username
+          : request.auth.token.get('email', '') is string && request.auth.token.get('email', '') != '' ? request.auth.token.email : request.auth.uid;
+      }
+      function member() { return request.auth != null && validProject() && role() in ['admin', 'pelaksana', 'petugas']; }
+      function admin() { return member() && role() == 'admin'; }
+      function amount(n) { return n is number && n >= 0 && n <= 1000000000; }
+      function near(a, b) { return a - b <= 0.000001 && b - a <= 0.000001; }
+      function photo(p) { return p is string && p.size() < 3000 && p.matches('https://firebasestorage[.]googleapis[.]com/.*'); }
+      function validStock(m) {
+        return amount(m.stock) && amount(m.initialStock) && amount(m.receivedTotal) && amount(m.usedTotal)
+          && near(m.stock, m.initialStock + m.receivedTotal - m.usedTotal);
+      }
+      function linkedMovement(m, materialId) {
+        let path = /databases/$(database)/documents/materialProjects/$(project)/movements/$(m.lastMovementId);
+        let e = getAfter(path).data;
+        return !exists(path) && e.materialId == materialId && e.actorUid == request.auth.uid
+          && e.afterStock == m.stock && e.photoUrl == m.photoUrl && e.createdAt == request.time;
+      }
+      function validCorrection(e, materialId) {
+        let old = get(/databases/$(database)/documents/materialProjects/$(project)/movements/$(e.correctionOf)).data;
+        let marker = /databases/$(database)/documents/materialProjects/$(project)/corrections/$(e.correctionOf);
+        return admin() && old.materialId == materialId && old.type in ['initial', 'incoming', 'usage']
+          && e.replacementQuantity == e.quantity
+          && !exists(marker) && getAfter(marker).data.movementId == request.resource.data.lastMovementId;
+      }
+      function changedTotals(before, after, e, materialId) {
+        return (e.type == 'incoming' && admin() && e.quantity > 0
+            && after.initialStock == before.initialStock && after.usedTotal == before.usedTotal
+            && near(after.receivedTotal, before.receivedTotal + e.quantity))
+          || (e.type == 'usage' && e.quantity > 0
+            && after.initialStock == before.initialStock && after.receivedTotal == before.receivedTotal
+            && near(after.usedTotal, before.usedTotal + e.quantity))
+          || (e.type == 'correction' && validCorrection(e, materialId) && correctedTotals(before, after, e));
+      }
+      function correctedTotals(before, after, e) {
+        let old = get(/databases/$(database)/documents/materialProjects/$(project)/movements/$(e.correctionOf)).data;
+        let difference = e.quantity - old.quantity;
+        return (old.type == 'initial' && near(after.initialStock, before.initialStock + difference) && after.receivedTotal == before.receivedTotal && after.usedTotal == before.usedTotal)
+          || (old.type == 'incoming' && near(after.receivedTotal, before.receivedTotal + difference) && after.initialStock == before.initialStock && after.usedTotal == before.usedTotal)
+          || (old.type == 'usage' && near(after.usedTotal, before.usedTotal + difference) && after.initialStock == before.initialStock && after.receivedTotal == before.receivedTotal);
+      }
+      match /materials/{materialId} {
+        function validAdminChange() {
+          let after = request.resource.data;
+          let changePath = /databases/$(database)/documents/materialProjects/$(project)/materialChanges/$(after.lastAdminChangeId);
+          let c = getAfter(changePath).data;
+          return !exists(changePath) && c.materialId == materialId && c.actorUid == request.auth.uid
+            && c.createdAt == request.time && after.updatedAt == request.time && after.updatedBy == request.auth.uid
+            && c.before == {'name': resource.data.name, 'unit': resource.data.unit, 'photoUrl': resource.data.photoUrl, 'isDeleted': resource.data.get('isDeleted', false)}
+            && c.after == {'name': after.name, 'unit': after.unit, 'photoUrl': after.photoUrl, 'isDeleted': after.isDeleted}
+            && after.name is string && after.name.size() > 0 && after.name.size() <= 120
+            && after.unit is string && after.unit.size() > 0 && after.unit.size() <= 30 && photo(after.photoUrl)
+            && ((c.action == 'edit' && resource.data.get('isDeleted', false) == false && after.isDeleted == false
+                && after.diff(resource.data).affectedKeys().hasOnly(['name','unit','photoUrl','isDeleted','updatedAt','updatedBy','lastAdminChangeId'])
+                && (after.unit == resource.data.unit || resource.data.lastMovementId == materialId))
+              || (c.action == 'delete' && after.isDeleted == true
+                && after.deletedAt == request.time && after.deletedBy == request.auth.uid
+                && ((c.removeHistory == true && after.historyDeleted == true && after.historyPurgePending == true)
+                  || (c.removeHistory == false && resource.data.get('isDeleted', false) == false && after.get('historyDeleted', false) == false))
+                && after.diff(resource.data).affectedKeys().hasOnly(['isDeleted','deletedAt','deletedBy','updatedAt','updatedBy','lastAdminChangeId','historyDeleted','historyPurgePending'])));
+        }
+        allow read: if member();
+        allow create: if admin()
+          && request.resource.data.keys().hasOnly(['name','unit','initialStock','receivedTotal','usedTotal','stock','photoUrl','lastMovementId','createdBy','createdAt','updatedAt'])
+          && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 120
+          && request.resource.data.unit is string && request.resource.data.unit.size() > 0 && request.resource.data.unit.size() <= 30
+          && validStock(request.resource.data) && photo(request.resource.data.photoUrl)
+          && request.resource.data.receivedTotal == 0 && request.resource.data.usedTotal == 0
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+          && linkedMovement(request.resource.data, materialId)
+          && getAfter(/databases/$(database)/documents/materialProjects/$(project)/movements/$(request.resource.data.lastMovementId)).data.type == 'initial';
+        allow update: if member()
+          && resource.data.get('isDeleted', false) == false
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['initialStock','receivedTotal','usedTotal','stock','photoUrl','lastMovementId','updatedAt'])
+          && validStock(request.resource.data) && photo(request.resource.data.photoUrl)
+          && request.resource.data.updatedAt == request.time
+          && linkedMovement(request.resource.data, materialId)
+          && changedTotals(resource.data, request.resource.data, getAfter(/databases/$(database)/documents/materialProjects/$(project)/movements/$(request.resource.data.lastMovementId)).data, materialId);
+        allow update: if admin() && validAdminChange();
+        allow update: if admin() && resource.data.get('historyDeleted', false) == true
+          && resource.data.get('historyPurgePending', false) == true
+          && request.resource.data.historyPurgePending == false && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['historyPurgePending','updatedAt']);
+        allow delete: if false;
+      }
+      match /materialChanges/{changeId} {
+        allow read: if member();
+        allow create: if admin()
+          && request.resource.data.keys().hasOnly(['materialId','action','before','after','removeHistory','actorUid','actorName','createdAt'])
+          && request.resource.data.removeHistory is bool
+          && request.resource.data.action in ['edit','delete']
+          && request.resource.data.actorUid == request.auth.uid && request.resource.data.actorName == actorLabel()
+          && request.resource.data.createdAt == request.time
+          && getAfter(/databases/$(database)/documents/materialProjects/$(project)/materials/$(request.resource.data.materialId)).data.lastAdminChangeId == changeId;
+        allow update, delete: if false;
+      }
+      match /movements/{movementId} {
+        function validEvent(e) {
+          let m = getAfter(/databases/$(database)/documents/materialProjects/$(project)/materials/$(e.materialId)).data;
+          return e.keys().hasOnly(['materialId','materialName','unit','type','quantity','delta','beforeStock','afterStock','purpose','photoUrl','actorUid','actorName','createdAt','correctionOf','replacementQuantity'])
+            && e.type in ['initial','incoming','usage','correction'] && amount(e.quantity)
+            && e.actorUid == request.auth.uid && e.actorName == actorLabel() && e.actorName.size() > 0 && e.actorName.size() <= 500
+            && e.createdAt == request.time && e.purpose is string && e.purpose.size() > 0 && e.purpose.size() <= 1000
+            && photo(e.photoUrl) && amount(e.beforeStock) && amount(e.afterStock)
+            && near(e.delta, e.afterStock - e.beforeStock)
+            && m.lastMovementId == movementId && m.stock == e.afterStock && m.photoUrl == e.photoUrl
+            && m.name == e.materialName && m.unit == e.unit
+            && ((e.type == 'initial' && admin() && !exists(/databases/$(database)/documents/materialProjects/$(project)/materials/$(e.materialId)) && e.beforeStock == 0 && e.afterStock == e.quantity)
+              || (e.type != 'initial' && e.beforeStock == get(/databases/$(database)/documents/materialProjects/$(project)/materials/$(e.materialId)).data.stock))
+            && (e.type == 'usage' || admin())
+            && (e.type == 'correction' || (e.correctionOf == null && e.replacementQuantity == null));
+        }
+        allow read: if member();
+        allow create: if member() && validEvent(request.resource.data);
+        allow update: if false;
+        allow delete: if admin() && get(/databases/$(database)/documents/materialProjects/$(project)/materials/$(resource.data.materialId)).data.get('historyDeleted', false) == true;
+      }
+      match /corrections/{originalId} {
+        allow read: if member();
+        allow create: if admin()
+          && request.resource.data.keys().hasOnly(['movementId','materialId','actorUid','createdAt'])
+          && request.resource.data.actorUid == request.auth.uid && request.resource.data.createdAt == request.time
+          && getAfter(/databases/$(database)/documents/materialProjects/$(project)/movements/$(request.resource.data.movementId)).data.correctionOf == originalId
+          && getAfter(/databases/$(database)/documents/materialProjects/$(project)/movements/$(request.resource.data.movementId)).data.materialId == request.resource.data.materialId;
+        allow update: if false;
+        allow delete: if admin() && get(/databases/$(database)/documents/materialProjects/$(project)/materials/$(resource.data.materialId)).data.get('historyDeleted', false) == true;
+      }
+    }
+  }
+}

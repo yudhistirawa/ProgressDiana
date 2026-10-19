@@ -1,0 +1,18 @@
+// Merge this match block with existing Storage rules; retain existing photo paths.
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /material-photos/{project}/{uid}/{filename} {
+      function member() {
+        return request.auth != null && project in ['diana','bungtomo','bisma']
+          && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin','pelaksana','petugas'];
+      }
+      allow read: if member();
+      allow create: if member() && request.auth.uid == uid
+        && request.resource.size > 0 && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+      // Audit evidence cannot be overwritten/deleted by client applications.
+      allow update, delete: if false;
+    }
+  }
+}

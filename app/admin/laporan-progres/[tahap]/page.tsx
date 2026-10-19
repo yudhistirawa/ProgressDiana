@@ -1,3 +1,4 @@
+import MaterialNavLink from "@/components/MaterialNavLink";
 import Link from "next/link";
 import AvatarMenuClient from "../../components/AvatarMenuClient";
 import StageReportListClient from "./StageReportListClient";
@@ -152,6 +153,7 @@ export default async function AdminTahapPage({ params, searchParams }: Props) {
                   </Link>
                 );
               })}
+              <MaterialNavLink />
             </nav>
           </div>
         </aside>
