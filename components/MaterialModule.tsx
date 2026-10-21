@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { fetchMaterials, fetchMaterialMovements, submitMaterial, manageMaterial, type MaterialSubmission } from "@/lib/firestore/materials";
 import { MATERIAL_PROJECTS, MOVEMENT_LABELS, materialDate, type Material, type MaterialMovement, type MaterialProject, type MovementType } from "@/lib/materialStock";
@@ -216,8 +217,8 @@ function MaterialManageForm({ project, material, mode, onClose, onSaved }: {
     } catch (err) { setError(message(err)); }
     finally { pending.current = false; setBusy(false); }
   }
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-    <section role="dialog" aria-modal="true" aria-labelledby="manage-material-title" className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+  return createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50 p-4">
+    <section role="dialog" aria-modal="true" aria-labelledby="manage-material-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-white p-6 shadow-xl">
       <h2 id="manage-material-title" className="mb-4 text-lg font-semibold">{mode === "delete" ? "Hapus material" : "Edit material"}</h2>
       <form onSubmit={submit} className="space-y-4">
         {mode === "delete" ? <fieldset disabled={busy} className="space-y-4"><p className="text-sm">Hapus <strong>{material.name}</strong>? Sisa stok tercatat {number(material.stock)} {material.unit}.</p>
@@ -235,7 +236,7 @@ function MaterialManageForm({ project, material, mode, onClose, onSaved }: {
         <div className="flex justify-end gap-2"><button type="button" disabled={busy} className={secondary} onClick={onClose}>Batal</button><button type="submit" disabled={busy} className={button}>{busy ? "Menyimpan..." : mode === "delete" ? "Ya, hapus material" : "Simpan perubahan"}</button></div>
       </form>
     </section>
-  </div>;
+  </div>, document.body);
 }
 
 function MaterialForm({ project, action, onClose, onSaved }: { project: MaterialProject; action: Action; onClose: () => void; onSaved: () => Promise<void> }) {
@@ -273,8 +274,8 @@ function MaterialForm({ project, action, onClose, onSaved }: { project: Material
     finally { busyRef.current = false; setBusy(false); }
   }
   const title = action.type === "initial" ? "Tambah material" : action.type === "incoming" ? "Tambah stok masuk" : action.type === "usage" ? "Pakai material" : "Koreksi transaksi";
-  return <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
-    <section role="dialog" aria-modal="true" aria-labelledby="material-form-title" className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+  return createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50 p-4">
+    <section role="dialog" aria-modal="true" aria-labelledby="material-form-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-white p-6 shadow-xl">
       <div className="mb-4 flex items-center justify-between gap-3"><h2 id="material-form-title" className="text-lg font-semibold">{title}</h2><button type="button" disabled={busy} className={secondary} onClick={onClose}>Tutup</button></div>
       <form className="space-y-4" onSubmit={submit}>
         <fieldset disabled={busy} className="space-y-4">
@@ -289,7 +290,7 @@ function MaterialForm({ project, action, onClose, onSaved }: { project: Material
         <button type="submit" disabled={busy} className={`${button} w-full`}>{busy ? "Menyimpan foto dan stok..." : "Simpan transaksi"}</button>
       </form>
     </section>
-  </div>;
+  </div>, document.body);
 }
 
 function PhotoLink({ url }: { url: string }) { return /^https:\/\//.test(url) ? <a className="text-blue-700 underline" href={url} target="_blank" rel="noopener noreferrer">Lihat foto</a> : <span className="text-neutral-400">—</span>; }
