@@ -173,7 +173,7 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
               </div>
             </div>
           </Link>
-          <Link href="/dashboard/material" className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-neutral-200 hover:shadow-lg"><h3 className="text-lg font-semibold">Material</h3><p className="mt-2 text-sm text-neutral-600">Pilih proyek, lihat sisa stok, dan catat pemakaian material beserta foto.</p></Link>
+          <Link href="/dashboard/material" className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-neutral-200 hover:shadow-lg"><h3 className="text-lg font-semibold">Material dan Alat</h3><p className="mt-2 text-sm text-neutral-600">Pilih proyek, lihat sisa stok, dan catat pemakaian material dan alat beserta foto.</p></Link>
         </section>
 
         {/* Tips */}

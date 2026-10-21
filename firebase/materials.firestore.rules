@@ -3,8 +3,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /materialProjects/{project} {
-      function validProject() { return project in ['diana', 'bungtomo', 'bisma']; }
+    match /{stockRoot}/{project} {
+      function validProject() { return stockRoot in ['materialProjects', 'equipmentProjects'] && project in ['diana', 'bungtomo', 'bisma']; }
       function role() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role; }
       function actorLabel() {
         let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
@@ -23,14 +23,14 @@ service cloud.firestore {
           && near(m.stock, m.initialStock + m.receivedTotal - m.usedTotal);
       }
       function linkedMovement(m, materialId) {
-        let path = /databases/$(database)/documents/materialProjects/$(project)/movements/$(m.lastMovementId);
+        let path = /databases/$(database)/documents/$(stockRoot)/$(project)/movements/$(m.lastMovementId);
         let e = getAfter(path).data;
         return !exists(path) && e.materialId == materialId && e.actorUid == request.auth.uid
           && e.afterStock == m.stock && e.photoUrl == m.photoUrl && e.createdAt == request.time;
       }
       function validCorrection(e, materialId) {
-        let old = get(/databases/$(database)/documents/materialProjects/$(project)/movements/$(e.correctionOf)).data;
-        let marker = /databases/$(database)/documents/materialProjects/$(project)/corrections/$(e.correctionOf);
+        let old = get(/databases/$(database)/documents/$(stockRoot)/$(project)/movements/$(e.correctionOf)).data;
+        let marker = /databases/$(database)/documents/$(stockRoot)/$(project)/corrections/$(e.correctionOf);
         return admin() && old.materialId == materialId && old.type in ['initial', 'incoming', 'usage']
           && e.replacementQuantity == e.quantity
           && !exists(marker) && getAfter(marker).data.movementId == request.resource.data.lastMovementId;
@@ -45,7 +45,7 @@ service cloud.firestore {
           || (e.type == 'correction' && validCorrection(e, materialId) && correctedTotals(before, after, e));
       }
       function correctedTotals(before, after, e) {
-        let old = get(/databases/$(database)/documents/materialProjects/$(project)/movements/$(e.correctionOf)).data;
+        let old = get(/databases/$(database)/documents/$(stockRoot)/$(project)/movements/$(e.correctionOf)).data;
         let difference = e.quantity - old.quantity;
         return (old.type == 'initial' && near(after.initialStock, before.initialStock + difference) && after.receivedTotal == before.receivedTotal && after.usedTotal == before.usedTotal)
           || (old.type == 'incoming' && near(after.receivedTotal, before.receivedTotal + difference) && after.initialStock == before.initialStock && after.usedTotal == before.usedTotal)
@@ -54,7 +54,7 @@ service cloud.firestore {
       match /materials/{materialId} {
         function validAdminChange() {
           let after = request.resource.data;
-          let changePath = /databases/$(database)/documents/materialProjects/$(project)/materialChanges/$(after.lastAdminChangeId);
+          let changePath = /databases/$(database)/documents/$(stockRoot)/$(project)/materialChanges/$(after.lastAdminChangeId);
           let c = getAfter(changePath).data;
           return !exists(changePath) && c.materialId == materialId && c.actorUid == request.auth.uid
             && c.createdAt == request.time && after.updatedAt == request.time && after.updatedBy == request.auth.uid
@@ -81,14 +81,14 @@ service cloud.firestore {
           && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
           && linkedMovement(request.resource.data, materialId)
-          && getAfter(/databases/$(database)/documents/materialProjects/$(project)/movements/$(request.resource.data.lastMovementId)).data.type == 'initial';
+          && getAfter(/databases/$(database)/documents/$(stockRoot)/$(project)/movements/$(request.resource.data.lastMovementId)).data.type == 'initial';
         allow update: if member()
           && resource.data.get('isDeleted', false) == false
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['initialStock','receivedTotal','usedTotal','stock','photoUrl','lastMovementId','updatedAt'])
           && validStock(request.resource.data) && photo(request.resource.data.photoUrl)
           && request.resource.data.updatedAt == request.time
           && linkedMovement(request.resource.data, materialId)
-          && changedTotals(resource.data, request.resource.data, getAfter(/databases/$(database)/documents/materialProjects/$(project)/movements/$(request.resource.data.lastMovementId)).data, materialId);
+          && changedTotals(resource.data, request.resource.data, getAfter(/databases/$(database)/documents/$(stockRoot)/$(project)/movements/$(request.resource.data.lastMovementId)).data, materialId);
         allow update: if admin() && validAdminChange();
         allow update: if admin() && resource.data.get('historyDeleted', false) == true
           && resource.data.get('historyPurgePending', false) == true
@@ -104,12 +104,12 @@ service cloud.firestore {
           && request.resource.data.action in ['edit','delete']
           && request.resource.data.actorUid == request.auth.uid && request.resource.data.actorName == actorLabel()
           && request.resource.data.createdAt == request.time
-          && getAfter(/databases/$(database)/documents/materialProjects/$(project)/materials/$(request.resource.data.materialId)).data.lastAdminChangeId == changeId;
+          && getAfter(/databases/$(database)/documents/$(stockRoot)/$(project)/materials/$(request.resource.data.materialId)).data.lastAdminChangeId == changeId;
         allow update, delete: if false;
       }
       match /movements/{movementId} {
         function validEvent(e) {
-          let m = getAfter(/databases/$(database)/documents/materialProjects/$(project)/materials/$(e.materialId)).data;
+          let m = getAfter(/databases/$(database)/documents/$(stockRoot)/$(project)/materials/$(e.materialId)).data;
           return e.keys().hasOnly(['materialId','materialName','unit','type','quantity','delta','beforeStock','afterStock','purpose','photoUrl','actorUid','actorName','createdAt','correctionOf','replacementQuantity'])
             && e.type in ['initial','incoming','usage','correction'] && amount(e.quantity)
             && e.actorUid == request.auth.uid && e.actorName == actorLabel() && e.actorName.size() > 0 && e.actorName.size() <= 500
@@ -118,25 +118,25 @@ service cloud.firestore {
             && near(e.delta, e.afterStock - e.beforeStock)
             && m.lastMovementId == movementId && m.stock == e.afterStock && m.photoUrl == e.photoUrl
             && m.name == e.materialName && m.unit == e.unit
-            && ((e.type == 'initial' && admin() && !exists(/databases/$(database)/documents/materialProjects/$(project)/materials/$(e.materialId)) && e.beforeStock == 0 && e.afterStock == e.quantity)
-              || (e.type != 'initial' && e.beforeStock == get(/databases/$(database)/documents/materialProjects/$(project)/materials/$(e.materialId)).data.stock))
+            && ((e.type == 'initial' && admin() && !exists(/databases/$(database)/documents/$(stockRoot)/$(project)/materials/$(e.materialId)) && e.beforeStock == 0 && e.afterStock == e.quantity)
+              || (e.type != 'initial' && e.beforeStock == get(/databases/$(database)/documents/$(stockRoot)/$(project)/materials/$(e.materialId)).data.stock))
             && (e.type == 'usage' || admin())
             && (e.type == 'correction' || (e.correctionOf == null && e.replacementQuantity == null));
         }
         allow read: if member();
         allow create: if member() && validEvent(request.resource.data);
         allow update: if false;
-        allow delete: if admin() && get(/databases/$(database)/documents/materialProjects/$(project)/materials/$(resource.data.materialId)).data.get('historyDeleted', false) == true;
+        allow delete: if admin() && get(/databases/$(database)/documents/$(stockRoot)/$(project)/materials/$(resource.data.materialId)).data.get('historyDeleted', false) == true;
       }
       match /corrections/{originalId} {
         allow read: if member();
         allow create: if admin()
           && request.resource.data.keys().hasOnly(['movementId','materialId','actorUid','createdAt'])
           && request.resource.data.actorUid == request.auth.uid && request.resource.data.createdAt == request.time
-          && getAfter(/databases/$(database)/documents/materialProjects/$(project)/movements/$(request.resource.data.movementId)).data.correctionOf == originalId
-          && getAfter(/databases/$(database)/documents/materialProjects/$(project)/movements/$(request.resource.data.movementId)).data.materialId == request.resource.data.materialId;
+          && getAfter(/databases/$(database)/documents/$(stockRoot)/$(project)/movements/$(request.resource.data.movementId)).data.correctionOf == originalId
+          && getAfter(/databases/$(database)/documents/$(stockRoot)/$(project)/movements/$(request.resource.data.movementId)).data.materialId == request.resource.data.materialId;
         allow update: if false;
-        allow delete: if admin() && get(/databases/$(database)/documents/materialProjects/$(project)/materials/$(resource.data.materialId)).data.get('historyDeleted', false) == true;
+        allow delete: if admin() && get(/databases/$(database)/documents/$(stockRoot)/$(project)/materials/$(resource.data.materialId)).data.get('historyDeleted', false) == true;
       }
     }
   }

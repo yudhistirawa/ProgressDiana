@@ -1,18 +1,19 @@
-import { MATERIAL_PROJECTS, MOVEMENT_LABELS, type Material, type MaterialMovement, type MaterialProject } from "./materialStock";
+import { MATERIAL_PROJECTS, MOVEMENT_LABELS, type Material, type MaterialMovement, type MaterialProject, type StockCategory } from "./materialStock";
 
-export async function exportMaterialWorkbook(project: MaterialProject, materials: Material[], movements: MaterialMovement[], start: string, end: string) {
+export async function exportMaterialWorkbook(project: MaterialProject, materials: Material[], movements: MaterialMovement[], start: string, end: string, category: StockCategory = "material") {
   const { default: ExcelJS } = await import("exceljs");
   const book = new ExcelJS.Workbook();
   book.creator = "Sistem Dokumentasi Proyek";
   book.created = new Date();
+  const item = category === "alat" ? "Alat" : "Material";
   const projectName = MATERIAL_PROJECTS.find(p => p.key === project)!.label;
   const stock = book.addWorksheet("Stok saat ini");
   stock.addRow([projectName, "Stok saat ekspor", new Date().toLocaleString("id-ID")]);
-  stock.addRow(["Nama material", "Satuan", "Stok awal (setelah koreksi)", "Total masuk", "Total dipakai", "Sisa saat ini", "Foto stok terakhir", "Status material"]);
+  stock.addRow([`Nama ${category}`, "Satuan", "Stok awal (setelah koreksi)", "Total masuk", "Total dipakai", "Sisa saat ini", "Foto stok terakhir", `Status ${category}`]);
   materials.forEach(m => stock.addRow([m.name, m.unit, m.initialStock, m.receivedTotal, m.usedTotal, m.stock, { text: "Buka foto stok terakhir", hyperlink: m.photoUrl }, m.isDeleted ? "Dihapus" : "Aktif"]));
   const history = book.addWorksheet("Riwayat periode");
   history.addRow([projectName, "Periode pencatatan", start, end]);
-  history.addRow(["Waktu", "Material", "Satuan", "Jenis", "Jumlah / jumlah pengganti", "Perubahan stok", "Stok sebelum", "Stok sesudah", "Petugas", "Tujuan / alasan", "Foto setelah transaksi", "ID transaksi asal koreksi", "ID transaksi"]);
+  history.addRow(["Waktu", item, "Satuan", "Jenis", "Jumlah / jumlah pengganti", "Perubahan stok", "Stok sebelum", "Stok sesudah", "Petugas", "Tujuan / alasan", "Foto setelah transaksi", "ID transaksi asal koreksi", "ID transaksi"]);
   movements.forEach(m => history.addRow([
     m.createdAt ? new Date(m.createdAt.toMillis()).toLocaleString("id-ID") : "", m.materialName, m.unit,
     MOVEMENT_LABELS[m.type], m.quantity, m.delta, m.beforeStock, m.afterStock,
@@ -37,7 +38,7 @@ export async function exportMaterialWorkbook(project: MaterialProject, materials
   const url = URL.createObjectURL(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `rekap-material-${project}-${start}-${end}.xlsx`;
+  anchor.download = `rekap-${category}-${project}-${start}-${end}.xlsx`;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

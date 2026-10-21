@@ -1,13 +1,14 @@
 import { getAuth } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, startAfter, Timestamp, where, writeBatch, type QueryDocumentSnapshot, type DocumentData } from "firebase/firestore";
 import { getFirebaseClient, getFirebaseStorage } from "../firebaseClient";
-import { applyStockMovement, stockNumber, validateMaterialPeriod, type Material, type MaterialMovement, type MaterialProject, type MovementType } from "../materialStock";
+import { applyStockMovement, stockNumber, validateMaterialPeriod, type Material, type MaterialMovement, type MaterialProject, type MovementType, type StockCategory } from "../materialStock";
 
-function context(project: MaterialProject) {
+function context(project: MaterialProject, category: StockCategory = "material") {
   if (!["diana", "bungtomo", "bisma"].includes(project)) throw new Error("Proyek tidak valid.");
   const fb = getFirebaseClient();
   if (!fb) throw new Error("Firebase belum terkonfigurasi.");
-  return { ...fb, materials: collection(fb.db, "materialProjects", project, "materials"), movements: collection(fb.db, "materialProjects", project, "movements") };
+  const root = category === "alat" ? "equipmentProjects" : "materialProjects";
+  return { ...fb, root, materials: collection(fb.db, root, project, "materials"), movements: collection(fb.db, root, project, "movements") };
 }
 
 async function actor(adminOnly: boolean) {
@@ -24,16 +25,16 @@ async function actor(adminOnly: boolean) {
   return { uid: user.uid, name, role: data?.role as string };
 }
 
-export async function fetchMaterials(project: MaterialProject) {
-  const ctx = context(project);
+export async function fetchMaterials(project: MaterialProject, category: StockCategory = "material") {
+  const ctx = context(project, category);
   const result = await getDocs(ctx.materials);
   return result.docs.map(d => ({ ...d.data(), id: d.id } as Material)).sort((a,b) => a.name.localeCompare(b.name, "id"));
 }
 
 // One range field avoids requiring a new composite index. Material selection is
 // applied after the bounded period has been fetched, so recap/export agree.
-export async function fetchMaterialMovements(project: MaterialProject, start: string, end: string): Promise<MaterialMovement[]> {
-  const ctx = context(project);
+export async function fetchMaterialMovements(project: MaterialProject, start: string, end: string, category: StockCategory = "material"): Promise<MaterialMovement[]> {
+  const ctx = context(project, category);
   const { from, until } = validateMaterialPeriod(start, end);
   const hidden = new Set((await getDocs(query(ctx.materials, where("historyDeleted", "==", true)))).docs.map(d => d.id));
   const base = query(ctx.movements, where("createdAt", ">=", Timestamp.fromDate(from)), where("createdAt", "<", Timestamp.fromDate(until)), orderBy("createdAt", "desc"));
@@ -48,7 +49,7 @@ export async function fetchMaterialMovements(project: MaterialProject, start: st
   }
 }
 
-async function uploadPhoto(project: MaterialProject, uid: string, operationId: string, file: File) {
+async function uploadPhoto(project: MaterialProject, uid: string, operationId: string, file: File, category: StockCategory = "material") {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Gunakan foto JPG, PNG, atau WebP.");
   if (file.size === 0 || file.size > 10 * 1024 * 1024) throw new Error("Ukuran foto maksimal 10 MB.");
   const storage = await getFirebaseStorage();
@@ -69,7 +70,7 @@ async function uploadPhoto(project: MaterialProject, uid: string, operationId: s
     blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(result => result ? resolve(result) : reject(new Error("Foto tidak dapat diproses.")), "image/jpeg", 0.85));
   } finally { bitmap.close(); }
   if (blob.size > 5 * 1024 * 1024) throw new Error("Foto terlalu besar setelah diproses.");
-  const target = ref(storage, `material-photos/${project}/${uid}/${operationId}-${crypto.randomUUID()}.jpg`);
+  const target = ref(storage, `${category === "alat" ? "equipment-photos" : "material-photos"}/${project}/${uid}/${operationId}-${crypto.randomUUID()}.jpg`);
   await uploadBytes(target, blob, { contentType: "image/jpeg" });
   return getDownloadURL(target);
 }
@@ -79,8 +80,8 @@ export type MaterialSubmission = {
   quantity: number; purpose: string; photo: File; correctionOf?: string;
 };
 
-export async function submitMaterial(project: MaterialProject, input: MaterialSubmission) {
-  const ctx = context(project);
+export async function submitMaterial(project: MaterialProject, input: MaterialSubmission, category: StockCategory = "material") {
+  const ctx = context(project, category);
   const who = await actor(input.type !== "usage");
   if (!/^[\w-]{10,100}$/.test(input.operationId)) throw new Error("Identitas transaksi tidak valid.");
   const quantity = stockNumber(input.quantity);
@@ -100,7 +101,7 @@ export async function submitMaterial(project: MaterialProject, input: MaterialSu
     if (previous.data().actorUid !== who.uid || previous.data().materialId !== materialRef.id || previous.data().type !== input.type) throw new Error("Identitas transaksi sudah digunakan.");
     return;
   }
-  const photoUrl = await uploadPhoto(project, who.uid, input.operationId, input.photo);
+  const photoUrl = await uploadPhoto(project, who.uid, input.operationId, input.photo, category);
   await runTransaction(ctx.db, async tx => {
     const existing = await tx.get(movementRef);
     if (existing.exists()) {
@@ -125,7 +126,7 @@ export async function submitMaterial(project: MaterialProject, input: MaterialSu
       let original: MaterialMovement | undefined;
       if (input.type === "correction") {
         const originalRef = doc(ctx.movements, input.correctionOf!);
-        const correctionRef = doc(ctx.db, "materialProjects", project, "corrections", input.correctionOf!);
+        const correctionRef = doc(ctx.db, ctx.root, project, "corrections", input.correctionOf!);
         const originalSnap = await tx.get(originalRef);
         const corrected = await tx.get(correctionRef);
         if (!originalSnap.exists() || originalSnap.data().materialId !== materialRef.id) throw new Error("Transaksi asal tidak ditemukan pada material ini.");
@@ -156,8 +157,8 @@ export async function submitMaterial(project: MaterialProject, input: MaterialSu
 export async function manageMaterial(project: MaterialProject, input: {
   operationId: string; materialId: string; action: "edit" | "delete";
   name?: string; unit?: string; photo?: File; removeHistory?: boolean; confirmation?: string;
-}) {
-  const ctx = context(project);
+}, category: StockCategory = "material") {
+  const ctx = context(project, category);
   const who = await actor(true);
   if (!/^[\w-]{10,100}$/.test(input.operationId) || !input.materialId || input.materialId.includes("/")) throw new Error("Identitas material tidak valid.");
   if (!["edit", "delete"].includes(input.action)) throw new Error("Tindakan tidak valid.");
@@ -167,14 +168,14 @@ export async function manageMaterial(project: MaterialProject, input: {
   const unit = input.unit?.trim() || "";
   if (input.action === "edit" && (!name || name.length > 120 || !unit || unit.length > 30)) throw new Error("Isi nama material dan satuan dengan benar.");
   const materialRef = doc(ctx.materials, input.materialId);
-  const changeRef = doc(ctx.db, "materialProjects", project, "materialChanges", input.operationId);
+  const changeRef = doc(ctx.db, ctx.root, project, "materialChanges", input.operationId);
   const previous = await getDoc(changeRef);
   if (previous.exists()) {
     if (previous.data().actorUid !== who.uid || previous.data().materialId !== input.materialId || previous.data().action !== input.action || (previous.data().removeHistory === true) !== removeHistory) throw new Error("Identitas perubahan sudah digunakan dengan pilihan berbeda.");
-    if (removeHistory) await purgeMaterialHistory(project, input.materialId);
+    if (removeHistory) await purgeMaterialHistory(project, input.materialId, category);
     return;
   }
-  const photoUrl = input.action === "edit" && input.photo ? await uploadPhoto(project, who.uid, input.operationId, input.photo) : null;
+  const photoUrl = input.action === "edit" && input.photo ? await uploadPhoto(project, who.uid, input.operationId, input.photo, category) : null;
   await runTransaction(ctx.db, async tx => {
     const change = await tx.get(changeRef);
     if (change.exists()) {
@@ -195,14 +196,14 @@ export async function manageMaterial(project: MaterialProject, input: {
       ...(removeHistory ? { historyDeleted: true, historyPurgePending: true } : {}),
     });
   });
-  if (removeHistory) await purgeMaterialHistory(project, input.materialId);
+  if (removeHistory) await purgeMaterialHistory(project, input.materialId, category);
 }
 
-async function purgeMaterialHistory(project: MaterialProject, materialId: string) {
-  const ctx = context(project);
+async function purgeMaterialHistory(project: MaterialProject, materialId: string, category: StockCategory = "material") {
+  const ctx = context(project, category);
   try {
     for (const name of ["movements", "corrections"]) {
-      const target = collection(ctx.db, "materialProjects", project, name);
+      const target = collection(ctx.db, ctx.root, project, name);
       while (true) {
         const snap = await getDocs(query(target, where("materialId", "==", materialId), limit(200)));
         if (snap.empty) break;

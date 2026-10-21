@@ -277,3 +277,22 @@ test('Excel contains readable stock/history sheets and photo hyperlinks without 
   assert.equal(workbook.model.media.length, 0);
   assert(filename.endsWith('.xlsx'));
 });
+
+ test('equipment stock, corrections, history and purge remain isolated from materials with the same ID', async () => {
+  const f = fixture(); const id = await f.seed();
+  await f.service.submitMaterial('diana', f.make('initial', 5, { operationId: id, name: 'Bor', unit: 'unit' }), 'alat');
+  const incoming = f.make('incoming', 3, { materialId: id });
+  await f.service.submitMaterial('diana', incoming, 'alat');
+  await f.service.submitMaterial('diana', f.make('correction', 2, { materialId: id, correctionOf: incoming.operationId }), 'alat');
+  assert.equal(f.documents.get('equipmentProjects/diana/materials/' + id).stock, 7);
+  assert.match(f.documents.get('equipmentProjects/diana/materials/' + id).photoUrl, /equipment-photos/);
+  assert.equal(f.material(id).stock, 100);
+  assert.equal((await f.service.fetchMaterials('diana', 'alat'))[0].name, 'Bor');
+  assert.equal((await f.service.fetchMaterialMovements('diana', '1970-01-01', '1970-01-02', 'alat')).length, 3);
+  await f.service.manageMaterial('diana', { operationId: randomUUID(), materialId: id, action: 'edit', name: 'Bor listrik', unit: 'unit' }, 'alat');
+  assert.equal(f.documents.get('equipmentProjects/diana/materials/' + id).name, 'Bor listrik');
+  await f.service.manageMaterial('diana', { operationId: randomUUID(), materialId: id, action: 'delete', removeHistory: true, confirmation: 'HAPUS' }, 'alat');
+  assert.equal((await f.service.fetchMaterialMovements('diana', '1970-01-01', '1970-01-02', 'alat')).length, 0);
+  assert(f.documents.has('materialProjects/diana/movements/' + id));
+  assert.equal(f.material(id).isDeleted, undefined);
+});

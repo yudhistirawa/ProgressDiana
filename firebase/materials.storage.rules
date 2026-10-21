@@ -2,9 +2,9 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /material-photos/{project}/{uid}/{filename} {
+    match /{photoRoot}/{project}/{uid}/{filename} {
       function member() {
-        return request.auth != null && project in ['diana','bungtomo','bisma']
+        return request.auth != null && photoRoot in ['material-photos','equipment-photos'] && project in ['diana','bungtomo','bisma']
           && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin','pelaksana','petugas'];
       }
       allow read: if member();

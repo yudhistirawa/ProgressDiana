@@ -1,4 +1,4 @@
-# Modul Material
+# Stok Material dan Alat
 
 Halaman admin: `/admin/material`. Halaman petugas/pengawas: `/dashboard/material`.
 Pengawas memakai role `pelaksana` yang sudah dipakai dashboard aplikasi.
@@ -25,8 +25,8 @@ Aturan Firestore dan Storage aktif telah dibaca, tanpa diubah: keduanya saat ini
 
 Untuk deploy aplikasi pada Vercel yang sudah menjalankan sistem ini, pertahankan enam environment variable `NEXT_PUBLIC_FIREBASE_*` yang sama seperti konfigurasi deployment lama (`API_KEY`, `AUTH_DOMAIN`, `PROJECT_ID`, `STORAGE_BUCKET`, `MESSAGING_SENDER_ID`, `APP_ID`). File `.env.local` tidak ikut Git; pada deployment baru variabel tersebut harus diatur di penyedia hosting sebelum build.
 
-- Gabungkan blok `match /materialProjects/{project}` dari [materials.firestore.rules](../firebase/materials.firestore.rules) ke blok `/databases/{database}/documents` aturan Firestore yang sudah ada.
-- Gabungkan blok `match /material-photos/{project}/{uid}/{filename}` dari [materials.storage.rules](../firebase/materials.storage.rules) ke blok `/b/{bucket}/o` aturan Storage yang sudah ada.
+- Gabungkan blok `match /{stockRoot}/{project}` dari [materials.firestore.rules](../firebase/materials.firestore.rules) ke blok `/databases/{database}/documents` aturan Firestore yang sudah ada.
+- Gabungkan blok `match /{photoRoot}/{project}/{uid}/{filename}` dari [materials.storage.rules](../firebase/materials.storage.rules) ke blok `/b/{bucket}/o` aturan Storage yang sudah ada.
 - Jangan mengganti seluruh aturan aplikasi dengan file khusus Material: path lama tidak tercakup oleh file tersebut. Hapus/batasi aturan wildcard permisif yang juga mencakup path Material; aturan `allow` lain yang lebih luas dapat melewati pembatasan modul.
 - Pastikan profil tepercaya tersimpan di `users/{FirebaseAuthUID}` dan role tidak bisa diubah sendiri oleh petugas. Modul sengaja tidak memakai cookie/localStorage untuk memberi izin tulis. Jika akun lama hanya memiliki profil berbasis email, migrasikan profil tersebut ke UID yang sesuai.
 - Deploy aturan gabungan lewat Firebase Console atau pipeline yang sudah dipakai, lalu uji admin/petugas dengan proyek uji. Cross-service read pada Storage rules dapat membutuhkan pemberian izin integrasi Firebase sesuai petunjuk console.
@@ -45,3 +45,7 @@ Penghapusan seluruh riwayat menandai material sebagai tidak bisa dipakai sebelum
 Jalankan `node --test scripts/test-materials.cjs`, `npx tsc --noEmit --incremental false`, dan `npm run build`.
 Pengujian mencakup saldo desimal, stok minus, pembatasan role pada service, isolasi proyek, idempotensi, koreksi, simulasi transaksi bersamaan/rollback, serta pembacaan kembali Excel untuk memeriksa tautan foto.
 Adaptor transaksi Firebase pada tes disimulasikan; aturan Firestore/Storage belum diuji di emulator maupun Firebase produksi. Uji akun admin/petugas, penolakan tulis langsung oleh role lain, unggah foto, dan ekspor setelah aturan digabungkan pada proyek uji sebelum produksi.
+
+## Pemisahan alat dan material
+
+Pilih tab Material atau Alat, lalu Stok atau Rekap & riwayat. Alur stok awal, masuk, pemakaian, koreksi, foto, edit, hapus, dan Excel sama untuk keduanya. Data material lama tetap memakai `materialProjects`. Data alat memakai `equipmentProjects/{project}/materials/{id}` dengan skema dan subkoleksi yang sama; foto alat memakai `equipment-photos/{project}/{uid}/...jpg`. Filter dan ekspor hanya mengambil kategori aktif. Aturan contoh Firebase mencakup kedua kategori dengan validasi dan hak akses yang sama; gabungkan aturan terbaru bila deployment memakai aturan khusus.

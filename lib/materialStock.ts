@@ -1,3 +1,4 @@
+export type StockCategory = "material" | "alat";
 export type MaterialProject = "diana" | "bungtomo" | "bisma";
 export type MovementType = "initial" | "incoming" | "usage" | "correction";
 export type StockTotals = { initialStock: number; receivedTotal: number; usedTotal: number; stock: number };
