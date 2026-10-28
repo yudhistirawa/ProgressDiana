@@ -1,5 +1,5 @@
 export type StockCategory = "material" | "alat";
-export type MaterialProject = "diana" | "bungtomo" | "bisma";
+export type MaterialProject = "diana" | "bungtomo" | "bisma" | "sampoerna";
 export type MovementType = "initial" | "incoming" | "usage" | "correction";
 export type StockTotals = { initialStock: number; receivedTotal: number; usedTotal: number; stock: number };
 export type Material = StockTotals & {
@@ -18,6 +18,7 @@ export type MaterialMovement = {
 
 export const MATERIAL_PROJECTS: { key: MaterialProject; label: string }[] = [
   { key: "diana", label: "Proyek Diana" }, { key: "bungtomo", label: "Proyek Bung Tomo" }, { key: "bisma", label: "Proyek Bisma" },
+  { key: "sampoerna", label: "Proyek MR Sampoerna Medan" },
 ];
 export const MOVEMENT_LABELS: Record<MovementType, string> = {
   initial: "Stok awal", incoming: "Stok masuk", usage: "Pemakaian", correction: "Koreksi",

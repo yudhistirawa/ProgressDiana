@@ -9,22 +9,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 
-type ProjectKey = "diana" | "bungtomo" | "bisma";
+type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 const PROJECT_STORAGE_KEY = "selected_project";
 
-export default function DashboardClient({ initialProject }: { initialProject?: ProjectKey }) {
-  const [project, setProject] = useState<ProjectKey>(initialProject ?? "diana");
+export default function DashboardClient({ initialProject, lockedToSampoerna = false }: { initialProject?: ProjectKey; lockedToSampoerna?: boolean }) {
+  const [project, setProject] = useState<ProjectKey>(lockedToSampoerna ? "sampoerna" : initialProject ?? "diana");
 
   useEffect(() => {
+    if (lockedToSampoerna) {
+      setProject("sampoerna");
+      localStorage.setItem(PROJECT_STORAGE_KEY, "sampoerna");
+      return;
+    }
     const saved = typeof window !== "undefined" ? (localStorage.getItem(PROJECT_STORAGE_KEY) as ProjectKey | null) : null;
-    if (saved === "diana" || saved === "bungtomo" || saved === "bisma") {
+    if (saved === "diana" || saved === "bungtomo" || saved === "bisma" || saved === "sampoerna") {
       setProject(saved);
     } else if (initialProject) {
       setProject(initialProject);
       localStorage.setItem(PROJECT_STORAGE_KEY, initialProject);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialProject, lockedToSampoerna]);
 
   const handleProject = (p: ProjectKey) => {
     setProject(p);
@@ -71,7 +76,12 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
 
       {/* Content */}
       <main className="relative mx-auto max-w-6xl px-4 pb-24 sm:pb-12 pt-6 md:pt-8 space-y-8">
-        <nav aria-label="Menu proyek" className="flex flex-wrap items-center gap-3"><Link href="/dashboard" className="text-sm">Beranda</Link><MaterialNavLink admin={false} /></nav>
+        {!lockedToSampoerna && (
+          <nav aria-label="Menu proyek" className="flex flex-wrap items-center gap-3">
+            <Link href="/dashboard" className="text-sm">Beranda</Link>
+            <MaterialNavLink admin={false} />
+          </nav>
+        )}
         {/* Hero */}
         <div className="relative overflow-hidden rounded-3xl bg-white/85 backdrop-blur ring-1 ring-white/70 shadow-lg shadow-rose-50/60">
           <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-rose-100/70 blur-2xl" />
@@ -80,10 +90,10 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-rose-500 mb-1">Selamat datang</p>
               <h1 className="text-2xl md:text-3xl font-bold text-neutral-900">Kelola progres dengan cepat dan rapi</h1>
-              <p className="text-sm text-neutral-600 mt-2">Pilih proyek dan mulai akses laporan Anda.</p>
+              <p className="text-sm text-neutral-600 mt-2">{lockedToSampoerna ? "Akses kerja khusus Proyek MR Sampoerna Medan." : "Pilih proyek dan mulai akses laporan Anda."}</p>
             </div>
             <div className="inline-flex items-center gap-2 rounded-2xl bg-white/80 ring-1 ring-neutral-200 shadow-sm p-2">
-              {(["diana", "bungtomo", "bisma"] as const).map((p) => {
+              {(["diana", "bungtomo", "bisma", "sampoerna"] as const).filter((p) => !lockedToSampoerna || p === "sampoerna").map((p) => {
                 const active = project === p;
                 return (
                   <button
@@ -94,7 +104,7 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
                       active ? "bg-gradient-to-r from-rose-500 to-red-600 text-white shadow" : "text-neutral-700 hover:bg-white"
                     ].join(" ")}
                   >
-                    {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : "Proyek Bung Tomo"}
+                    {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : p === "sampoerna" ? "Proyek MR Sampoerna Medan" : "Proyek Bung Tomo"}
                   </button>
                 );
               })}
@@ -103,7 +113,7 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
         </div>
 
         {/* Quick Actions */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <section className={`grid grid-cols-1 gap-5 ${lockedToSampoerna ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
           <Link
             href={`/dashboard/laporan-progres?project=${project}`}
             className="group relative overflow-hidden rounded-3xl bg-white p-6 ring-1 ring-neutral-200/60 shadow-lg shadow-blue-50/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
@@ -152,32 +162,36 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
             </div>
           </Link>
 
-          <Link
-            href={`/dashboard/planning?project=${project}`}
-            className="group relative overflow-hidden rounded-3xl bg-white p-6 ring-1 ring-neutral-200/60 shadow-lg shadow-emerald-50/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-white via-white to-emerald-50 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative flex items-start gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-inner">
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
-                  <path d="M7 2a1 1 0 0 0-1 1v1H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a1 1 0 1 0-2 0v1H8V3a1 1 0 0 0-1-1Zm12 8H5v10h14V10Z" />
-                </svg>
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-lg sm:text-xl font-semibold text-neutral-900">Planning</h3>
-                <p className="text-sm text-neutral-600 leading-relaxed">Lihat target harian dan progres real sebagai acuan kerja.</p>
-                <div className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 group-hover:translate-x-1 transition-transform">
-                  Buka
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="m13 5 7 7-7 7v-4H4v-6h9V5Z" /></svg>
+          {!lockedToSampoerna && (
+            <>
+              <Link
+                href={`/dashboard/planning?project=${project}`}
+                className="group relative overflow-hidden rounded-3xl bg-white p-6 ring-1 ring-neutral-200/60 shadow-lg shadow-emerald-50/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-white via-white to-emerald-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative flex items-start gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-inner">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
+                      <path d="M7 2a1 1 0 0 0-1 1v1H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a1 1 0 1 0-2 0v1H8V3a1 1 0 0 0-1-1Zm12 8H5v10h14V10Z" />
+                    </svg>
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-lg sm:text-xl font-semibold text-neutral-900">Planning</h3>
+                    <p className="text-sm text-neutral-600 leading-relaxed">Lihat target harian dan progres real sebagai acuan kerja.</p>
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 group-hover:translate-x-1 transition-transform">
+                      Buka
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="m13 5 7 7-7 7v-4H4v-6h9V5Z" /></svg>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </Link>
-          <Link href="/dashboard/material" className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-neutral-200 hover:shadow-lg"><h3 className="text-lg font-semibold">Material dan Alat</h3><p className="mt-2 text-sm text-neutral-600">Pilih proyek, lihat sisa stok, dan catat pemakaian material dan alat beserta foto.</p></Link>
+              </Link>
+              <Link href="/dashboard/material" className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-neutral-200 hover:shadow-lg"><h3 className="text-lg font-semibold">Material dan Alat</h3><p className="mt-2 text-sm text-neutral-600">Pilih proyek, lihat sisa stok, dan catat pemakaian material dan alat beserta foto.</p></Link>
+            </>
+          )}
         </section>
 
         {/* Tips */}
-        <section className="rounded-3xl bg-white/85 backdrop-blur ring-1 ring-white/70 shadow-lg shadow-neutral-50/70 p-6 sm:p-7">
+        {!lockedToSampoerna && <section className="rounded-3xl bg-white/85 backdrop-blur ring-1 ring-white/70 shadow-lg shadow-neutral-50/70 p-6 sm:p-7">
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-rose-500">Tips</p>
@@ -189,12 +203,12 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
             <li>Gunakan deskripsi singkat, jelas, dan terstruktur.</li>
             <li>Perbarui progres secara rutin untuk akurasi.</li>
           </ul>
-        </section>
+        </section>}
       </main>
 
       {/* Bottom Nav (mobile only) */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-20 bg-white/90 backdrop-blur border-t border-neutral-200">
-        <div className="mx-auto max-w-6xl grid grid-cols-3 text-xs">
+        <div className={`mx-auto max-w-6xl grid text-xs ${lockedToSampoerna ? "grid-cols-2" : "grid-cols-3"}`}>
           <Link href="/dashboard" className="flex flex-col items-center justify-center h-14 text-neutral-900 gap-0.5">
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
               <path d="M12 3 3 10h3v10h5V14h2v6h5V10h3L12 3Z" />
@@ -207,12 +221,12 @@ export default function DashboardClient({ initialProject }: { initialProject?: P
             </svg>
             <span>Riwayat</span>
           </Link>
-          <Link href="/dashboard/profil" className="flex flex-col items-center justify-center h-14 text-neutral-700 gap-0.5">
+          {!lockedToSampoerna && <Link href="/dashboard/profil" className="flex flex-col items-center justify-center h-14 text-neutral-700 gap-0.5">
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
               <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
             </svg>
             <span>Profil</span>
-          </Link>
+          </Link>}
         </div>
       </nav>
     </div>

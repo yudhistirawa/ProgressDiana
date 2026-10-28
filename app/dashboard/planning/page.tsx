@@ -1,3 +1,4 @@
+import { dashboardProject, isDashboardProjectLocked } from "@/lib/serverProjectAccess";
 import Link from "next/link";
 import PlanningListClient from "@/app/components/planning/PlanningListClient";
 import type { ProjectKey } from "@/lib/firestore/planning";
@@ -10,7 +11,8 @@ export const metadata = {
 type Props = { searchParams?: { project?: string } };
 
 export default function DashboardPlanningPage({ searchParams }: Props) {
-  const projectParam: ProjectKey = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "bisma" ? "bisma" : "diana";
+  const projectParam = dashboardProject(searchParams?.project);
+  const lockedToSampoerna = isDashboardProjectLocked();
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       <div className="pointer-events-none absolute inset-0 -z-10 hidden sm:block">
@@ -60,10 +62,11 @@ export default function DashboardPlanningPage({ searchParams }: Props) {
           <p className="text-xs sm:text-sm text-neutral-600">
             Proyek aktif:{" "}
             <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">
-              {projectParam === "diana" ? "Diana" : projectParam === "bisma" ? "Bisma" : "Bung Tomo"}
+              {projectParam === "diana" ? "Diana" : projectParam === "bisma" ? "Bisma" : projectParam === "sampoerna" ? "MR Sampoerna Medan" : "Bung Tomo"}
             </span>
           </p>
-          <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
+          <div className="inline-flex flex-wrap rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
+            {!lockedToSampoerna && <>
             <Link
               href="/dashboard/planning?project=diana"
               className={[
@@ -90,6 +93,16 @@ export default function DashboardPlanningPage({ searchParams }: Props) {
               ].join(" ")}
             >
               Bisma
+            </Link>
+            </>}
+            <Link
+              href="/dashboard/planning?project=sampoerna"
+              className={[
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                projectParam === "sampoerna" ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white",
+              ].join(" ")}
+            >
+              MR Sampoerna Medan
             </Link>
           </div>
         </div>

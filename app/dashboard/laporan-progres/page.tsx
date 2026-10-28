@@ -1,3 +1,4 @@
+import { dashboardProject } from "@/lib/serverProjectAccess";
 import Link from "next/link";
 import UserStagesClient from "./UserStagesClient";
 
@@ -9,7 +10,7 @@ export const metadata = {
 type Props = { searchParams?: { project?: string } };
 
 export default function LaporanProgres({ searchParams }: Props) {
-  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "bisma" ? "bisma" : "diana";
+  const projectParam = dashboardProject(searchParams?.project);
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       {/* Decorative background - desktop/tablet */}
@@ -62,7 +63,7 @@ export default function LaporanProgres({ searchParams }: Props) {
       {/* Content */}
       <main className="mx-auto max-w-4xl px-3 sm:px-4 pb-8 pt-5">
         <p className="mb-4 text-xs sm:text-sm text-neutral-600">
-          Pilih tahap untuk melihat detail progres dan mengisi laporan. Proyek aktif: <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">{projectParam === "diana" ? "Diana" : projectParam === "bisma" ? "Bisma" : "Bung Tomo"}</span>
+          Pilih tahap untuk melihat detail progres dan mengisi laporan. Proyek aktif: <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">{projectParam === "diana" ? "Diana" : projectParam === "bisma" ? "Bisma" : projectParam === "sampoerna" ? "MR Sampoerna Medan" : "Bung Tomo"}</span>
         </p>
 
         <UserStagesClient project={projectParam} />

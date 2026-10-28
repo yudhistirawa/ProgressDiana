@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
 import LogoImg from "@/Logo/Logo_BGD__1_-removebg-preview.png";
-import { setRole, verifyPetugas, verifyViewer, Role } from "@/lib/authClient";
+import { setRole, verifyUser, Role } from "@/lib/authClient";
 
 type AlertState = {
   type: 'error' | 'warning' | 'info';
@@ -59,12 +59,7 @@ export default function Home() {
               const fd = new FormData(e.currentTarget as HTMLFormElement);
               const username = String(fd.get("username") || "").trim();
               const password = String(fd.get("password") || "");
-              const selectedRole = String(fd.get("role") || "pelaksana") as Role;
-              
-              // Use the appropriate verification function based on role
-              const res = selectedRole === "viewer" 
-                ? await verifyViewer(username, password)
-                : await verifyPetugas(username, password);
+              const res = await verifyUser(username, password);
               
               if (!res.ok) {
                 const msg = res.message.toLowerCase();
@@ -74,8 +69,8 @@ export default function Home() {
                   showAlert('error', 'Password Salah', `Password yang Anda masukkan untuk username "${username}" tidak sesuai.\n\nSilakan cek kembali password Anda.`);
                 } else if (msg.includes('too many requests') || msg.includes('blocked')) {
                   showAlert('warning', 'Terlalu Banyak Percobaan', 'Anda telah mencoba login beberapa kali.\n\nSilakan tunggu beberapa menit sebelum mencoba lagi.');
-                } else if (msg.includes('bukan role')) {
-                  showAlert('error', 'Akses Ditolak', `Akun ini tidak terdaftar sebagai ${selectedRole}.\n\nSilakan pilih tipe login yang sesuai dengan role akun Anda.`);
+                } else if (msg.includes('role akun tidak dikenali')) {
+                  showAlert('error', 'Akses Ditolak', 'Role akun ini tidak dikenali sistem. Silakan hubungi administrator.');
                 } else {
                   showAlert('error', 'Login Gagal', res.message || 'Terjadi kesalahan yang tidak diketahui.');
                 }
@@ -83,36 +78,15 @@ export default function Home() {
               }
 
               setIsLoading(true);
-              setRole(selectedRole);
-              setTimeout(() => router.push(selectedRole === "viewer" ? "/viewer" : "/dashboard"), 300);
+              setRole(res.user.role as Role);
+              const destination = res.user.role === "admin"
+                ? "/admin/dashboard"
+                : res.user.role === "viewer"
+                  ? "/viewer"
+                  : "/dashboard";
+              setTimeout(() => router.push(destination), 300);
             }}
           >
-            <div className="space-y-1">
-              <label htmlFor="role" className="block text-xs font-medium text-neutral-700">
-                Login Sebagai
-              </label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-                    <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
-                  </svg>
-                </span>
-                <select
-                  id="role"
-                  name="role"
-                  className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-10 py-2.5 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-red-300"
-                >
-                  <option value="pelaksana">Pelaksana</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                    <path d="M7 10l5 5 5-5H7z"/>
-                  </svg>
-                </span>
-              </div>
-            </div>
-
             <div className="space-y-1">
               <label htmlFor="username" className="block text-xs font-medium text-neutral-700">
                 Username
@@ -203,9 +177,6 @@ export default function Home() {
           <p className="mt-6 text-[11px] text-neutral-400 text-center">
             Dengan masuk, Anda menyetujui kebijakan penggunaan dan privasi.
           </p>
-          <div className="mt-3 text-center">
-            <a href="/admin" className="text-xs text-neutral-500 hover:text-neutral-700 underline-offset-2 hover:underline">Login admin</a>
-          </div>
         </div>
 
         {/* Custom Alert Modal - Modern & Professional */}

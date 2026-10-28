@@ -1,6 +1,8 @@
+import { dashboardProject } from "@/lib/serverProjectAccess";
 import FormTahapSatuClient from "../1/FormTahapSatuClient";
 import ConfirmNavigationButton from "@/components/ConfirmNavigationButton";
 import { formStorageKey, unsavedFlagKey, UNSAVED_PROGRESS_CONFIRM_MESSAGE } from "@/lib/progressDraftKeys";
+import ProgressStageTitle from "../ProgressStageTitle";
 
 export const metadata = {
   title: "Laporan Tahap 5 - Sistem Dokumentasi Progres",
@@ -10,7 +12,7 @@ export const metadata = {
 type Props = { searchParams?: { project?: string; stageId?: string } };
 
 export default function LaporanTahapLima({ searchParams }: Props) {
-  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "bisma" ? "bisma" : "diana";
+  const projectParam = dashboardProject(searchParams?.project);
   const stageId = searchParams?.stageId;
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
@@ -42,7 +44,7 @@ export default function LaporanTahapLima({ searchParams }: Props) {
               <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />
             </svg>
           </ConfirmNavigationButton>
-          <div className="text-sm sm:text-base font-semibold tracking-wide">Laporan Tahap 5</div>
+          <ProgressStageTitle project={projectParam} stage={5} stageId={stageId} />
           <div className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-red-600 shadow-sm">
             <svg viewBox="0 0 100 100" className="h-4 w-4" fill="currentColor" aria-hidden>
               <g transform="translate(50,50)">

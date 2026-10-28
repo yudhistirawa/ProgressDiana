@@ -3,11 +3,11 @@
 import { useEffect } from "react";
 import { useDailyData } from "@/lib/useDailyData";
 
-type ProjectKey = "diana" | "bungtomo" | "bisma";
+type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 
 export default function ViewerDataHarianClient({ project = "diana" }: { project?: ProjectKey }) {
-  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana";
-  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : projectKey === "sampoerna" ? "Progress_Sampoerna" : "Progress_Diana";
   const { dailyStats, loading, error, filterMonth, setFilterMonth, filterYear, setFilterYear,
     selectedDate, selectedItems, detailLoading, loadDailyData, handleDateClick, closeModal } = useDailyData(progressCollection);
   const detailCardId = "viewer-detail-modal-card";

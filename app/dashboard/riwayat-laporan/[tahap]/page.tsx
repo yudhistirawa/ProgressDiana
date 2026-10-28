@@ -1,3 +1,4 @@
+import { dashboardProject } from "@/lib/serverProjectAccess";
 import Link from "next/link";
 import { Suspense } from "react";
 import RiwayatTahapClient from "../RiwayatTahapClient";
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: Props) {
 export default async function RiwayatTahap({ params, searchParams }: Props) {
   const { tahap } = await params;
   const sp = searchParams ? await searchParams : undefined;
-  const projectParam = sp?.project === "bungtomo" ? "bungtomo" : sp?.project === "bisma" ? "bisma" : "diana";
+  const projectParam = dashboardProject(sp?.project);
   const label = `Riwayat Tahap ${tahap}`;
 
   return (

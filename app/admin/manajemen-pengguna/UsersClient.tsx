@@ -18,7 +18,7 @@ import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 export type User = {
   id: string;
   username: string;
-  role: string; // "admin" | "pelaksana" | "viewer" | "admin-petugas"
+  role: string; // "admin" | "pelaksana" | "viewer" | "sampoerna" | "admin-petugas"
   name?: string;
   phone?: string;
   email?: string;
@@ -29,24 +29,27 @@ export type User = {
   isAdminPetugas?: boolean;
 };
 
-type UserClientType = "admin" | "pelaksana" | "petugasAdmin" | "viewer";
+type UserClientType = "admin" | "pelaksana" | "petugasAdmin" | "viewer" | "sampoerna";
 
 export default function UsersClient({ type }: { type: UserClientType }) {
   const isPetugasAdmin = type === "petugasAdmin";
   const isViewer = type === "viewer";
-  const baseRole: "admin" | "pelaksana" | "viewer" = 
+  const isSampoerna = type === "sampoerna";
+  const baseRole: "admin" | "pelaksana" | "viewer" | "sampoerna" =
     type === "admin" ? "admin" : 
-    type === "viewer" ? "viewer" : "pelaksana";
+    type === "viewer" ? "viewer" :
+    type === "sampoerna" ? "sampoerna" : "pelaksana";
   const title =
     type === "admin" ? "List User Admin" : 
     type === "pelaksana" ? "List User Pelaksana" : 
-    type === "viewer" ? "List User Viewer" : "List User Admin Petugas";
+    type === "viewer" ? "List User Viewer" :
+    type === "sampoerna" ? "Petugas Khusus MR Sampoerna Medan" : "List User Admin Petugas";
   const fb = getFirebaseClient();
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState<null | { id?: string }>(null);
   const [formUsername, setFormUsername] = useState("");
-  const [formRole, setFormRole] = useState<"admin" | "pelaksana" | "viewer">(baseRole);
+  const [formRole, setFormRole] = useState<"admin" | "pelaksana" | "viewer" | "sampoerna">(baseRole);
   const [formFullName, setFormFullName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -79,6 +82,10 @@ export default function UsersClient({ type }: { type: UserClientType }) {
         
         if (type === "viewer") {
           return roleValue === "viewer";
+        }
+
+        if (type === "sampoerna") {
+          return roleValue === "sampoerna";
         }
 
         if (type === "admin") {
@@ -132,6 +139,8 @@ export default function UsersClient({ type }: { type: UserClientType }) {
       setFormRole('admin');
     } else if (currentRole === 'viewer') {
       setFormRole('viewer');
+    } else if (currentRole === 'sampoerna') {
+      setFormRole('sampoerna');
     } else {
       setFormRole('pelaksana');
     }
@@ -151,6 +160,11 @@ export default function UsersClient({ type }: { type: UserClientType }) {
           <div className="rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs sm:text-sm px-4 py-3">
             Akun Admin Petugas menggunakan role pelaksana agar dapat login melalui portal petugas. Gunakan email dan
             password yang valid; role dan kategori akan dikunci otomatis sebagai admin petugas.
+          </div>
+        )}
+        {isSampoerna && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900 sm:text-sm">
+            Akun ini login melalui portal Pelaksana, tetapi dashboard dan seluruh akses kerjanya dikunci hanya untuk Proyek MR Sampoerna Medan.
           </div>
         )}
         <div className="flex items-center gap-2">
@@ -204,7 +218,7 @@ export default function UsersClient({ type }: { type: UserClientType }) {
                 if (!fb) { alert("Firebase belum siap"); return; }
                 if (!formUsername.trim()) { alert("Username wajib diisi"); return; }
                 if (formPassword !== formConfirm) { alert("Konfirmasi kata sandi tidak cocok"); return; }
-                const resolvedRole = isPetugasAdmin ? "pelaksana" : formRole;
+                const resolvedRole = isPetugasAdmin ? "pelaksana" : isSampoerna ? "sampoerna" : formRole;
                 const data: any = {
                   username: formUsername.trim(),
                   role: resolvedRole,
@@ -259,14 +273,15 @@ export default function UsersClient({ type }: { type: UserClientType }) {
                     <select
                       value={formRole}
                       onChange={(e) => setFormRole(e.target.value as any)}
-                      disabled={isPetugasAdmin}
+                      disabled={isPetugasAdmin || isSampoerna}
                       className={`w-full appearance-none rounded-md ring-1 ring-neutral-300 px-3 py-1.5 text-sm ${
-                        isPetugasAdmin ? "bg-neutral-100 text-neutral-500 cursor-not-allowed" : ""
+                        isPetugasAdmin || isSampoerna ? "bg-neutral-100 text-neutral-500 cursor-not-allowed" : ""
                       }`}
                     >
                       <option value="admin">Admin</option>
                       <option value="pelaksana">Pelaksana</option>
                       <option value="viewer">Viewer</option>
+                      <option value="sampoerna">Petugas MR Sampoerna Medan</option>
                     </select>
                     <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-neutral-600">
                       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M6.3 9.3a1 1 0 0 1 1.4 0L12 13.6l4.3-4.3a1 1 0 1 1 1.4 1.4l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 0 1 0-1.4Z"/></svg>
@@ -274,6 +289,9 @@ export default function UsersClient({ type }: { type: UserClientType }) {
                   </div>
                   {isPetugasAdmin && (
                     <p className="mt-1 text-[11px] text-neutral-500">Role dikunci sebagai pelaksana untuk Admin Petugas.</p>
+                  )}
+                  {isSampoerna && (
+                    <p className="mt-1 text-[11px] text-neutral-500">Role dikunci khusus untuk Proyek MR Sampoerna Medan.</p>
                   )}
                 </div>
                 <div>

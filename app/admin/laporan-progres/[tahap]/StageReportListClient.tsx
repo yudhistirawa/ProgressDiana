@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ExcelJS from "exceljs";
 import { getFirebaseClient, getFirebaseStorage } from "../../../../lib/firebaseClient";
 
-type ProjectKey = "diana" | "bungtomo" | "bisma";
+type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 
 type Item = {
   id: string;
@@ -78,6 +78,7 @@ const CONFIG_KEYS: Record<ProjectKey, string> = {
   diana: "stages_config",
   bungtomo: "stages_config_bungtomo",
   bisma: "stages_config_bisma",
+  sampoerna: "stages_config_sampoerna",
 };
 
 const getRenderableImageUrl = (value: unknown): string | null => {
@@ -146,9 +147,9 @@ export default function StageReportListClient({
   project?: ProjectKey;
   stageId?: string | number | null;
 }) {
-  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana";
-  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
-  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : projectKey === "bisma" ? "Progress_Bisma_Notifikasi" : "Progress_Diana_Notifikasi";
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : projectKey === "sampoerna" ? "Progress_Sampoerna" : "Progress_Diana";
+  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : projectKey === "bisma" ? "Progress_Bisma_Notifikasi" : projectKey === "sampoerna" ? "Progress_Sampoerna_Notifikasi" : "Progress_Diana_Notifikasi";
   const stageNumber = Number(stage);
   const stageFilter = Number.isNaN(stageNumber) ? stage : stageNumber;
   const normalizedStageId = stageId != null && stageId !== ""

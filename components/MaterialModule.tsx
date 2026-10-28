@@ -14,8 +14,8 @@ const button = "rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-whi
 const secondary = "rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50";
 type Action = { type: MovementType; material?: Material; original?: MaterialMovement };
 
-export default function MaterialModule({ admin = false }: { admin?: boolean }) {
-  const [project, setProject] = useState<MaterialProject | null>(null);
+export default function MaterialModule({ admin = false, lockedToSampoerna = false }: { admin?: boolean; lockedToSampoerna?: boolean }) {
+  const [project, setProject] = useState<MaterialProject | null>(lockedToSampoerna ? "sampoerna" : null);
   const [category, setCategory] = useState<StockCategory>("material");
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-rose-50/30 text-neutral-900">
@@ -38,8 +38,8 @@ export default function MaterialModule({ admin = false }: { admin?: boolean }) {
         </aside>
         <main className="min-w-0 space-y-5">
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200">
-            <div><h2 className="font-semibold">Pilih proyek</h2><p className="text-xs text-neutral-500">Stok dan riwayat terpisah untuk setiap proyek.</p></div>
-            <div className="flex flex-wrap gap-2">{MATERIAL_PROJECTS.map(p => <button key={p.key} aria-pressed={project === p.key} onClick={() => setProject(p.key)} className={project === p.key ? button : secondary}>{p.label}</button>)}</div>
+            <div><h2 className="font-semibold">{lockedToSampoerna ? "Proyek aktif" : "Pilih proyek"}</h2><p className="text-xs text-neutral-500">{lockedToSampoerna ? "Akun Anda khusus untuk Proyek MR Sampoerna Medan." : "Stok dan riwayat terpisah untuk setiap proyek."}</p></div>
+            <div className="flex flex-wrap gap-2">{MATERIAL_PROJECTS.filter(p => !lockedToSampoerna || p.key === "sampoerna").map(p => <button key={p.key} aria-pressed={project === p.key} onClick={() => setProject(p.key)} className={project === p.key ? button : secondary}>{p.label}</button>)}</div>
           </section>
           {project ? <><div className="flex flex-wrap gap-2" aria-label="Jenis stok">{(["material", "alat"] as StockCategory[]).map(kind => <button key={kind} aria-pressed={category === kind} className={category === kind ? button : secondary} onClick={() => setCategory(kind)}>{kind === "alat" ? "Alat" : "Material"}</button>)}</div><MaterialWorkspace key={`${project}-${category}`} project={project} admin={admin} category={category} /></> : <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-12 text-center text-neutral-500">Pilih proyek untuk menampilkan stok material dan alat.</div>}
         </main>

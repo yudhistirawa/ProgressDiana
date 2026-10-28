@@ -1,7 +1,7 @@
 import { getFirebaseClient, getFirebaseStorage } from "../firebaseClient";
 import type { DocumentData } from "firebase/firestore";
 
-export type ProjectKey = "diana" | "bungtomo" | "bisma";
+export type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 export type PlanningStatus = "active" | "done" | "archived";
 
 export type PlanningItem = {
@@ -40,6 +40,7 @@ export function listProjectKeys(): { key: ProjectKey; label: string }[] {
     { key: "diana", label: "Diana" },
     { key: "bungtomo", label: "Bung Tomo" },
     { key: "bisma", label: "Bisma" },
+    { key: "sampoerna", label: "MR Sampoerna Medan" },
   ];
 }
 

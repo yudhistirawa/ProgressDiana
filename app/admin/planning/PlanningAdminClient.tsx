@@ -13,7 +13,7 @@ export default function PlanningAdminClient() {
   useEffect(() => {
     const saved =
       typeof window !== "undefined" ? (localStorage.getItem(PROJECT_STORAGE_KEY) as ProjectKey | null) : null;
-    if (saved === "bungtomo" || saved === "diana" || saved === "bisma") setProject(saved);
+    if (saved === "bungtomo" || saved === "diana" || saved === "bisma" || saved === "sampoerna") setProject(saved);
   }, []);
 
   const handleProject = (p: ProjectKey) => {
@@ -28,7 +28,7 @@ export default function PlanningAdminClient() {
           <div className="text-sm font-semibold text-neutral-900">Pilih Proyek</div>
           <div className="text-xs text-neutral-500">Planning dipisah per proyek (tab).</div>
         </div>
-        <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
+        <div className="flex flex-wrap rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
           {listProjectKeys().map((p) => {
             const active = project === p.key;
             return (
@@ -40,7 +40,7 @@ export default function PlanningAdminClient() {
                   active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white",
                 ].join(" ")}
               >
-                {p.key === "diana" ? "Proyek Diana" : p.key === "bisma" ? "Proyek Bisma" : "Proyek Bung Tomo"}
+                {p.key === "diana" ? "Proyek Diana" : p.key === "bisma" ? "Proyek Bisma" : p.key === "sampoerna" ? "Proyek MR Sampoerna Medan" : "Proyek Bung Tomo"}
               </button>
             );
           })}

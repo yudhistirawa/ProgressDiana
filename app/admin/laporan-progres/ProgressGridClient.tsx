@@ -5,11 +5,12 @@ import { getFirebaseClient } from "@/lib/firebaseClient";
 import { doc, getDoc } from "firebase/firestore";
 
 type StageItem = { id: number; title: string; stageId?: number };
-type ProjectKey = "diana" | "bungtomo" | "bisma";
+type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 const CONFIG_KEYS: Record<ProjectKey, string> = {
   diana: "stages_config",
   bungtomo: "stages_config_bungtomo",
   bisma: "stages_config_bisma",
+  sampoerna: "stages_config_sampoerna",
 };
 
 
@@ -29,7 +30,7 @@ export default function ProgressGridClient({
     if (!fb) return;
     (async () => {
       try {
-        const ref = doc(fb.db, "config", CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana"]);
+        const ref = doc(fb.db, "config", CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana"]);
         const snap = await getDoc(ref);
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
         const items: StageItem[] = Array.isArray(list)

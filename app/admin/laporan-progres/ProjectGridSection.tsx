@@ -3,12 +3,13 @@
 import { useState } from "react";
 import ProgressGridClient from "./ProgressGridClient";
 
-type ProjectKey = "diana" | "bungtomo" | "bisma";
+type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 
 const PROJECTS: Record<ProjectKey, { key: ProjectKey; label: string; badge: string }> = {
   diana: { key: "diana", label: "Proyek Diana", badge: "Aktif" },
   bungtomo: { key: "bungtomo", label: "Proyek Bung Tomo", badge: "Baru" },
   bisma: { key: "bisma", label: "Proyek Bisma", badge: "Baru" },
+  sampoerna: { key: "sampoerna", label: "Proyek MR Sampoerna Medan", badge: "Baru" },
 };
 
 export default function ProjectGridSection() {
@@ -21,7 +22,7 @@ export default function ProjectGridSection() {
           <div className="text-sm font-semibold text-neutral-900">Pilih Proyek</div>
           <div className="text-xs text-neutral-500">Data terpisah per proyek</div>
         </div>
-        <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
+        <div className="flex flex-wrap rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
           {(Object.values(PROJECTS) as (typeof PROJECTS)[keyof typeof PROJECTS][]).map((p) => {
             const active = project === p.key;
             return (

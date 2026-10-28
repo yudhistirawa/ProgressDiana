@@ -1,3 +1,4 @@
+import { normalizeProject } from "@/lib/projects";
 import MaterialNavLink from "@/components/MaterialNavLink";
 import Link from "next/link";
 import AvatarMenuClient from "../../components/AvatarMenuClient";
@@ -14,7 +15,7 @@ export async function generateMetadata({ params }: Props) {
 export default async function AdminTahapPage({ params, searchParams }: Props) {
   const { tahap } = await params;
   const sp = searchParams ? await searchParams : undefined;
-  const projectParam = sp?.project === "bungtomo" ? "bungtomo" : sp?.project === "bisma" ? "bisma" : "diana";
+  const projectParam = normalizeProject(sp?.project);
   const stageIdParam = sp?.stageId;
   const navItems = [
     {

@@ -1,7 +1,9 @@
+import { dashboardProject } from "@/lib/serverProjectAccess";
 import Link from "next/link";
 import ConfirmNavigationButton from "@/components/ConfirmNavigationButton";
 import { formStorageKey, unsavedFlagKey, UNSAVED_PROGRESS_CONFIRM_MESSAGE } from "@/lib/progressDraftKeys";
 import FormTahapSatuClient from "../1/FormTahapSatuClient";
+import ProgressStageTitle from "../ProgressStageTitle";
 
 type Props = {
   params: Promise<{ tahap: string }>;
@@ -20,9 +22,8 @@ export async function generateMetadata({ params }: Props) {
 export default async function TahapDetail({ params, searchParams }: Props) {
   const { tahap } = await params;
   const sp = searchParams ? await searchParams : undefined;
-  const projectParam = sp?.project === "bungtomo" ? "bungtomo" : sp?.project === "bisma" ? "bisma" : "diana";
+  const projectParam = dashboardProject(sp?.project);
   const stageIdParam = sp?.stageId;
-  const tahapLabel = `Tahap ${tahap}`;
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
@@ -58,7 +59,7 @@ export default async function TahapDetail({ params, searchParams }: Props) {
               <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />
             </svg>
           </ConfirmNavigationButton>
-          <div className="text-sm sm:text-base font-semibold tracking-wide">{tahapLabel}</div>
+          <ProgressStageTitle project={projectParam} stage={tahap} stageId={stageIdParam} />
           <div className="inline-flex items-center justify-center h-9 px-3 rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-sm text-xs">
             Draft
           </div>

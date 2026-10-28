@@ -1,4 +1,5 @@
 import DashboardClient from "./DashboardClient";
+import { dashboardProjectOrUndefined, isDashboardProjectLocked } from "@/lib/serverProjectAccess";
 
 export const metadata = {
   title: "Dashboard - Sistem Dokumentasi Progres",
@@ -6,6 +7,6 @@ export const metadata = {
 };
 
 export default function DashboardPage({ searchParams }: { searchParams?: { project?: string } }) {
-  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "diana" ? "diana" : searchParams?.project === "bisma" ? "bisma" : undefined;
-  return <DashboardClient initialProject={projectParam} />;
+  const projectParam = dashboardProjectOrUndefined(searchParams?.project);
+  return <DashboardClient initialProject={projectParam} lockedToSampoerna={isDashboardProjectLocked()} />;
 }

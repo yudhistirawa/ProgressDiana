@@ -19,7 +19,7 @@ import {
   createUserWithEmailAndPassword,
 } from "firebase/auth";
 
-export type Role = "admin" | "petugas" | "pelaksana" | "viewer";
+export type Role = "admin" | "petugas" | "pelaksana" | "viewer" | "sampoerna";
 
 const COOKIE_NAME = "role";
 
@@ -72,13 +72,80 @@ async function resolveEmailByUsername(username: string, role: Role) {
   return (snap.docs[0].data() as any)?.email as string | undefined;
 }
 
+export async function verifyUser(usernameOrEmail: string, password: string) {
+  const fb = getFirebaseClient();
+  if (!fb) return { ok: false, message: "Firebase belum terkonfigurasi" } as const;
+
+  const loginValue = usernameOrEmail.trim();
+  let email = loginValue.includes("@") ? loginValue : "";
+
+  if (!email) {
+    const usernameQuery = query(
+      collection(fb.db, "users"),
+      where("username", "==", loginValue),
+      limit(1)
+    );
+    const usernameSnap = await getDocs(usernameQuery);
+    email = usernameSnap.empty
+      ? ""
+      : String((usernameSnap.docs[0].data() as { email?: string }).email || "");
+  }
+
+  // Pertahankan dukungan akun admin awal sebelum dokumen user-nya terbentuk.
+  if (!email && loginValue.toLowerCase() === "admin") {
+    const adminResult = await verifyAdmin(loginValue, password);
+    if (!adminResult.ok) return adminResult;
+    return {
+      ok: true,
+      user: { ...adminResult.user, role: "admin" as const },
+    } as const;
+  }
+
+  if (!email) return { ok: false, message: "User tidak ditemukan" } as const;
+
+  try {
+    const auth = getAuth(fb.app);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const userById = await getDoc(doc(fb.db, "users", cred.user.uid));
+    let role = userById.exists()
+      ? String((userById.data() as { role?: string }).role || "")
+      : "";
+
+    if (!role) {
+      const emailQuery = query(
+        collection(fb.db, "users"),
+        where("email", "==", email),
+        limit(1)
+      );
+      const emailSnap = await getDocs(emailQuery);
+      if (!emailSnap.empty) {
+        role = String((emailSnap.docs[0].data() as { role?: string }).role || "");
+      }
+    }
+
+    if (role !== "admin" && role !== "viewer" && role !== "pelaksana" && role !== "sampoerna") {
+      await signOut(auth);
+      return { ok: false, message: "Role akun tidak dikenali" } as const;
+    }
+
+    return {
+      ok: true,
+      user: { uid: cred.user.uid, email, role: role as "admin" | "viewer" | "pelaksana" | "sampoerna" },
+    } as const;
+  } catch (e: any) {
+    return { ok: false, message: e?.message || "Gagal login" } as const;
+  }
+}
+
 export async function verifyPetugas(usernameOrEmail: string, password: string) {
   const fb = getFirebaseClient();
   if (!fb) return { ok: false, message: "Firebase belum terkonfigurasi" } as const;
   const auth = getAuth();
   const email = usernameOrEmail.includes("@")
     ? usernameOrEmail
-    : (await resolveEmailByUsername(usernameOrEmail, "pelaksana")) || "";
+    : (await resolveEmailByUsername(usernameOrEmail, "pelaksana"))
+      || (await resolveEmailByUsername(usernameOrEmail, "sampoerna"))
+      || "";
   if (!email) return { ok: false, message: "User tidak ditemukan" } as const;
   try {
     const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -91,11 +158,11 @@ export async function verifyPetugas(usernameOrEmail: string, password: string) {
       const snap = await getDocs(qy);
       if (!snap.empty) role = (snap.docs[0].data() as any)?.role;
     }
-    if (role !== "pelaksana") {
+    if (role !== "pelaksana" && role !== "sampoerna") {
       await signOut(auth);
       return { ok: false, message: "Akun bukan role petugas" } as const;
     }
-    return { ok: true, user: { uid: u.uid, email } } as const;
+    return { ok: true, user: { uid: u.uid, email, role: role as "pelaksana" | "sampoerna" } } as const;
   } catch (e: any) {
     return { ok: false, message: e?.message || "Gagal login" } as const;
   }

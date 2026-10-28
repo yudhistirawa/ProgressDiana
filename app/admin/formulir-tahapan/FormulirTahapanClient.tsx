@@ -13,11 +13,12 @@ type AlertState = {
   show: boolean;
 };
 
-type ProjectKey = "diana" | "bungtomo" | "bisma";
+type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 const CONFIG_KEYS: Record<ProjectKey, string> = {
   diana: "stages_config",
   bungtomo: "stages_config_bungtomo",
   bisma: "stages_config_bisma",
+  sampoerna: "stages_config_sampoerna",
 };
 
 function useStages(project: ProjectKey) {
@@ -117,8 +118,8 @@ export default function FormulirTahapanClient() {
           <h2 className="text-sm sm:text-base font-semibold">Daftar Tahapan & Formulir</h2>
           <p className="text-xs text-neutral-500">Form yang sudah ada saat ini milik Proyek Diana. Pilih proyek lain untuk membuat set baru.</p>
         </div>
-        <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
-          {(["diana", "bungtomo", "bisma"] as const).map((p) => {
+        <div className="flex flex-wrap rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
+          {(["diana", "bungtomo", "bisma", "sampoerna"] as const).map((p) => {
             const active = project === p;
             return (
               <button
@@ -129,7 +130,7 @@ export default function FormulirTahapanClient() {
                   active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white"
                 ].join(" ")}
               >
-                {p === "diana" ? "Diana" : p === "bisma" ? "Bisma" : "Bung Tomo"}
+                {p === "diana" ? "Diana" : p === "bisma" ? "Bisma" : p === "sampoerna" ? "MR Sampoerna Medan" : "Bung Tomo"}
               </button>
             );
           })}

@@ -1,3 +1,4 @@
+import { dashboardProject } from "@/lib/serverProjectAccess";
 import Link from "next/link";
 import { Suspense } from "react";
 import HistoryStagesClient from "./HistoryStagesClient";
@@ -10,7 +11,7 @@ export const metadata = {
 type Props = { searchParams?: { project?: string } };
 
 export default function RiwayatLaporan({ searchParams }: Props) {
-  const projectParam = searchParams?.project === "bungtomo" ? "bungtomo" : searchParams?.project === "bisma" ? "bisma" : "diana";
+  const projectParam = dashboardProject(searchParams?.project);
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       {/* Decorative background - desktop/tablet */}
@@ -62,7 +63,7 @@ export default function RiwayatLaporan({ searchParams }: Props) {
       {/* Content */}
       <main className="mx-auto max-w-4xl px-3 sm:px-4 pb-20 pt-5">
         <div className="mb-3 text-xs text-neutral-600">
-          Proyek aktif: <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">{projectParam === "bungtomo" ? "Bung Tomo" : projectParam === "bisma" ? "Bisma" : "Diana"}</span>
+          Proyek aktif: <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">{projectParam === "bungtomo" ? "Bung Tomo" : projectParam === "bisma" ? "Bisma" : projectParam === "sampoerna" ? "MR Sampoerna Medan" : "Diana"}</span>
         </div>
         <Suspense fallback={
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">

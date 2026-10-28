@@ -84,7 +84,7 @@ export default function ManajemenPengguna() {
         <main className="col-span-12 sm:col-span-8 lg:col-span-9">
           <h2 className="text-center text-sm sm:text-base font-semibold mb-6">Manajemen Pengguna</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
             <Link
               href="/admin/manajemen-pengguna/admin"
               className="group rounded-2xl ring-1 ring-white/70 bg-white/90 shadow-lg shadow-slate-100/70 hover:shadow-xl transition-all duration-200 p-6 text-center backdrop-blur hover:-translate-y-0.5"
@@ -140,6 +140,21 @@ export default function ManajemenPengguna() {
                 </svg>
               </div>
               <div className="text-sm font-medium">User Viewer</div>
+            </Link>
+
+            <Link
+              href="/admin/manajemen-pengguna/sampoerna"
+              className="group rounded-2xl ring-1 ring-emerald-200 bg-emerald-50/80 shadow-lg shadow-emerald-100/70 hover:shadow-xl transition-all duration-200 p-6 text-center backdrop-blur hover:-translate-y-0.5"
+            >
+              <div className="mx-auto mb-4 h-16 w-16 rounded-xl grid place-items-center bg-white ring-1 ring-emerald-200 text-emerald-800 group-hover:scale-105 transition-transform" aria-hidden>
+                <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none">
+                  <circle cx="24" cy="16" r="6" stroke="currentColor" strokeWidth="3" />
+                  <path d="M12 40c0-6.6 5.4-12 12-12s12 5.4 12 12" stroke="currentColor" strokeWidth="3" />
+                  <path d="M35 9h8v8h-8zM39 17v8" stroke="currentColor" strokeWidth="3" />
+                </svg>
+              </div>
+              <div className="text-sm font-semibold">Petugas MR Sampoerna Medan</div>
+              <div className="mt-1 text-xs text-emerald-800">Akses hanya proyek Sampoerna</div>
             </Link>
           </div>
         </main>

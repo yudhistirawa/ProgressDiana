@@ -4,7 +4,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{stockRoot}/{project} {
-      function validProject() { return stockRoot in ['materialProjects', 'equipmentProjects'] && project in ['diana', 'bungtomo', 'bisma']; }
+      function validProject() { return stockRoot in ['materialProjects', 'equipmentProjects'] && project in ['diana', 'bungtomo', 'bisma', 'sampoerna']; }
       function role() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role; }
       function actorLabel() {
         let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
@@ -13,7 +13,10 @@ service cloud.firestore {
           : profile.get('username', '') is string && profile.get('username', '') != '' ? profile.username
           : request.auth.token.get('email', '') is string && request.auth.token.get('email', '') != '' ? request.auth.token.email : request.auth.uid;
       }
-      function member() { return request.auth != null && validProject() && role() in ['admin', 'pelaksana', 'petugas']; }
+      function member() {
+        return request.auth != null && validProject()
+          && (role() in ['admin', 'pelaksana', 'petugas'] || (role() == 'sampoerna' && project == 'sampoerna'));
+      }
       function admin() { return member() && role() == 'admin'; }
       function amount(n) { return n is number && n >= 0 && n <= 1000000000; }
       function near(a, b) { return a - b <= 0.000001 && b - a <= 0.000001; }

@@ -5,7 +5,7 @@ import ViewerLaporanProgressClient from "./ViewerLaporanProgressClient";
 import AvatarMenuClient from "@/app/admin/components/AvatarMenuClient";
 import { useState } from "react";
 
-type ProjectKey = "diana" | "bungtomo" | "bisma";
+type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 const PROJECT_STORAGE_KEY = "viewer_selected_project";
 
 export default function ViewerLaporanProgressPage() {
@@ -44,8 +44,8 @@ export default function ViewerLaporanProgressPage() {
             <div className="text-sm font-semibold text-neutral-900">Pilih Proyek</div>
             <div className="text-xs text-neutral-500">Data progres viewer dipisah per proyek</div>
           </div>
-          <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
-            {(["diana", "bungtomo", "bisma"] as const).map((p) => {
+          <div className="flex flex-wrap rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
+            {(["diana", "bungtomo", "bisma", "sampoerna"] as const).map((p) => {
               const active = project === p;
               return (
                 <button
@@ -56,7 +56,7 @@ export default function ViewerLaporanProgressPage() {
                     active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white"
                   ].join(" ")}
                 >
-                  {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : "Proyek Bung Tomo"}
+                  {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : p === "sampoerna" ? "Proyek MR Sampoerna Medan" : "Proyek Bung Tomo"}
                 </button>
               );
             })}

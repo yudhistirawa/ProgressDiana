@@ -17,11 +17,11 @@ type DisplayItem = {
   files?: string[];
 };
 
-type ProjectKey = "diana" | "bungtomo" | "bisma";
+type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 
 export default function RiwayatTahapClient({ stage, project = "diana" }: { stage: number; project?: ProjectKey }) {
-  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana";
-  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : projectKey === "sampoerna" ? "Progress_Sampoerna" : "Progress_Diana";
   const [items, setItems] = useState<DisplayItem[]>([]);
   const [query, setQuery] = useState("");
   const [asc, setAsc] = useState(false);

@@ -4,7 +4,7 @@ import { getFirebaseClient, getFirebaseStorage } from "../firebaseClient";
 import { applyStockMovement, stockNumber, validateMaterialPeriod, type Material, type MaterialMovement, type MaterialProject, type MovementType, type StockCategory } from "../materialStock";
 
 function context(project: MaterialProject, category: StockCategory = "material") {
-  if (!["diana", "bungtomo", "bisma"].includes(project)) throw new Error("Proyek tidak valid.");
+  if (!["diana", "bungtomo", "bisma", "sampoerna"].includes(project)) throw new Error("Proyek tidak valid.");
   const fb = getFirebaseClient();
   if (!fb) throw new Error("Firebase belum terkonfigurasi.");
   const root = category === "alat" ? "equipmentProjects" : "materialProjects";
@@ -18,7 +18,7 @@ async function actor(adminOnly: boolean) {
   if (!user) throw new Error("Silakan masuk kembali.");
   const profile = await getDoc(doc(fb.db, "users", user.uid));
   const data = profile.data();
-  if (!profile.exists() || (adminOnly ? data?.role !== "admin" : !["admin", "pelaksana", "petugas"].includes(data?.role))) {
+  if (!profile.exists() || (adminOnly ? data?.role !== "admin" : !["admin", "pelaksana", "petugas", "sampoerna"].includes(data?.role))) {
     throw new Error("Akun tidak memiliki izin untuk tindakan ini.");
   }
   const name = [data?.name, data?.nama, data?.username, user.email, user.uid].find(value => typeof value === "string" && value.length > 0) as string;
@@ -83,6 +83,7 @@ export type MaterialSubmission = {
 export async function submitMaterial(project: MaterialProject, input: MaterialSubmission, category: StockCategory = "material") {
   const ctx = context(project, category);
   const who = await actor(input.type !== "usage");
+  if (who.role === "sampoerna" && project !== "sampoerna") throw new Error("Akun ini hanya dapat mengakses Proyek MR Sampoerna Medan.");
   if (!/^[\w-]{10,100}$/.test(input.operationId)) throw new Error("Identitas transaksi tidak valid.");
   const quantity = stockNumber(input.quantity);
   if (quantity < 0 || (!["initial", "correction"].includes(input.type) && quantity === 0)) throw new Error("Periksa jumlah material.");

@@ -320,15 +320,15 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
 }
 
-type ProjectKey = "diana" | "bungtomo" | "bisma";
+type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 type Props = { stage?: number; project?: ProjectKey; stageId?: number | string | null };
 
 export default function FormTahapSatuClient({ stage = 1, project = "diana", stageId }: Props) {
-  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : "diana";
-  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
-  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : projectKey === "bisma" ? "Progress_Bisma_Notifikasi" : "Progress_Diana_Notifikasi";
-  const storagePrefix = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : "Progress_Diana";
-  const configKey = projectKey === "bungtomo" ? "stages_config_bungtomo" : projectKey === "bisma" ? "stages_config_bisma" : "stages_config";
+  const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana";
+  const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : projectKey === "sampoerna" ? "Progress_Sampoerna" : "Progress_Diana";
+  const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : projectKey === "bisma" ? "Progress_Bisma_Notifikasi" : projectKey === "sampoerna" ? "Progress_Sampoerna_Notifikasi" : "Progress_Diana_Notifikasi";
+  const storagePrefix = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : projectKey === "sampoerna" ? "Progress_Sampoerna" : "Progress_Diana";
+  const configKey = projectKey === "bungtomo" ? "stages_config_bungtomo" : projectKey === "bisma" ? "stages_config_bisma" : projectKey === "sampoerna" ? "stages_config_sampoerna" : "stages_config";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileWajibName, setFileWajibName] = useState("");
   const [fileOpsionalName, setFileOpsionalName] = useState("");
@@ -338,14 +338,12 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
   const [fileOpsionalPreview, setFileOpsionalPreview] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [dateStr, setDateStr] = useState<string>("");
-  const [dateISO, setDateISO] = useState<string>("");
   const [timeStr, setTimeStr] = useState<string>("");
   const [gpsStatus, setGpsStatus] = useState<"init" | "tracking" | "denied" | "unsupported" | "error">("init");
   const [gps, setGps] = useState<{ lat?: number; lon?: number; accuracy?: number; updated?: number }>({});
   const [address, setAddress] = useState<string>("");
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeErr, setGeocodeErr] = useState<string | null>(null);
-  const [autoTimestamp, setAutoTimestamp] = useState<boolean>(true);
   
   // State untuk menyimpan data progress
   const [progressData, setProgressData] = useState<Array<{
@@ -384,49 +382,9 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
     return Number.isNaN(n) ? String(stageId) : n;
   }, [stageId]);
 
-  // Load persisted data from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedAutoTimestamp = localStorage.getItem('autoTimestamp');
-      if (storedAutoTimestamp !== null) {
-        const parsedAutoTimestamp = JSON.parse(storedAutoTimestamp);
-        setAutoTimestamp(parsedAutoTimestamp);
-
-        const isManual = !parsedAutoTimestamp;
-        if (isManual) {
-          const storedDateStr = localStorage.getItem('manualDateStr');
-          const storedDateISO = localStorage.getItem('manualDateISO');
-          const storedTimeStr = localStorage.getItem('manualTimeStr');
-
-          if (storedDateStr) setDateStr(storedDateStr);
-          if (storedDateISO) setDateISO(storedDateISO);
-          if (storedTimeStr) setTimeStr(storedTimeStr);
-        }
-      }
-    }
-  }, []);
-
-  // Persist autoTimestamp to localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('autoTimestamp', JSON.stringify(autoTimestamp));
-    }
-  }, [autoTimestamp]);
-
-  // Persist manual date and time to localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !autoTimestamp) {
-      localStorage.setItem('manualDateStr', dateStr);
-      localStorage.setItem('manualDateISO', dateISO);
-      localStorage.setItem('manualTimeStr', timeStr);
-    }
-  }, [dateStr, dateISO, timeStr, autoTimestamp]);
-
   // Initialize clock from device time and keep ticking
   useEffect(() => {
-    if (!autoTimestamp) return;
     const setFrom = (d: Date) => {
-      setDateISO(d.toISOString().slice(0, 10));
       setDateStr(d.toLocaleDateString("id-ID"));
       setTimeStr(
         d.toLocaleTimeString("id-ID", { hour12: false })
@@ -435,7 +393,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
     setFrom(new Date());
     const t = setInterval(() => setFrom(new Date()), 1000);
     return () => clearInterval(t);
-  }, [autoTimestamp]);
+  }, []);
 
   // Load schema per stage
   useEffect(() => {
@@ -509,13 +467,6 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         setGps({ lat: latitude, lon: longitude, accuracy, updated: pos.timestamp });
-        // Only update time if in auto mode
-        if (autoTimestamp) {
-          const gpsTime = new Date(pos.timestamp || Date.now());
-          setDateISO(gpsTime.toISOString().slice(0, 10));
-          setDateStr(gpsTime.toLocaleDateString("id-ID"));
-          setTimeStr(gpsTime.toLocaleTimeString("id-ID", { hour12: false }));
-        }
       },
       (err) => {
         setGpsStatus(err.code === 1 ? "denied" : "error");
@@ -523,7 +474,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
     );
     return () => navigator.geolocation.clearWatch(id);
-  }, [autoTimestamp]);
+  }, []);
 
   // Reverse geocoding when lat/lon available
   useEffect(() => {
@@ -678,6 +629,11 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
               email = auth.currentUser?.email ?? null;
             } catch {}
 
+            // Ambil ulang waktu perangkat tepat ketika laporan dikirim. Nilai ini
+            // tidak berasal dari input form agar tidak dapat diganti secara manual.
+            const submittedAt = new Date();
+            const submittedDate = submittedAt.toLocaleDateString("id-ID");
+            const submittedTime = submittedAt.toLocaleTimeString("id-ID", { hour12: false });
             const data = {
               id: recId,
               stage,
@@ -687,13 +643,14 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
               answers,
               uid,
               email,
-              tanggal: String(fd.get("tanggal") || dateStr),
-              jam: String(fd.get("jam") || timeStr),
+              tanggal: submittedDate,
+              jam: submittedTime,
               latitude: gps.lat ?? null,
               longitude: gps.lon ?? null,
               accuracy: gps.accuracy ?? null,
               alamat: address || null,
-              createdAt: Date.now(),
+              deviceTimestamp: submittedAt.getTime(),
+              createdAt: submittedAt.getTime(),
             };
             
             // Simpan laporan ke Firestore
@@ -1044,6 +1001,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
               <option>Grahaku</option>
               <option>Bung Tomo</option>
               <option>Bisma</option>
+              <option>MR Sampoerna Medan</option>
             </select>
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
@@ -1252,68 +1210,19 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
           )}
         </div>
 
-        {/* Waktu (realtime, tidak bisa diubah) */}
+        {/* Waktu perangkat (realtime dan tidak bisa diubah) */}
         <div className="space-y-3">
           <div className="space-y-1">
-            <div className="flex items-center justify-between gap-2">
-              <label className="block text-xs font-medium text-neutral-700">Tanggal</label>
-              <button
-                type="button"
-                onClick={() =>
-                  setAutoTimestamp((prev) => {
-                    const next = !prev;
-                    if (next) {
-                      const now = new Date();
-                      setDateISO(now.toISOString().slice(0, 10));
-                      setDateStr(now.toLocaleDateString("id-ID"));
-                    }
-                    return next;
-                  })
-                }
-                className="text-[11px] font-medium text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline"
-                suppressHydrationWarning={true}
-              >
-                {autoTimestamp ? "Ubah manual" : "Gunakan otomatis"}
-              </button>
-            </div>
-            {autoTimestamp ? (
-              <input
-                type="text"
-                value={dateStr}
-                readOnly
-                className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm shadow-inner text-neutral-700"
-                placeholder="cth: 18/10/2025"
-              />
-            ) : (
-              <input
-                type="date"
-                value={dateISO}
-                onChange={(e) => {
-                  const iso = e.target.value;
-                  setDateISO(iso);
-                  if (iso) {
-                    const local = new Date(`${iso}T00:00:00`).toLocaleDateString("id-ID");
-                    setDateStr(local);
-                    if (typeof window !== 'undefined') {
-                      localStorage.setItem('manualDateISO', iso);
-                      localStorage.setItem('manualDateStr', local);
-                    }
-                  } else {
-                    setDateStr("");
-                    if (typeof window !== 'undefined') {
-                      localStorage.setItem('manualDateISO', iso);
-                      localStorage.setItem('manualDateStr', "");
-                    }
-                  }
-                }}
-                className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-4 py-2.5 text-sm shadow-inner text-neutral-700 focus:outline-none focus:ring-2 focus:ring-red-300"
-              />
-            )}
-            <input type="hidden" name="tanggal" value={dateStr} />
+            <label className="block text-xs font-medium text-neutral-700">Tanggal</label>
+            <input
+              type="text"
+              value={dateStr}
+              readOnly
+              className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm shadow-inner text-neutral-700"
+              placeholder="Tanggal perangkat"
+            />
             <p className="text-[11px] text-neutral-500">
-              {autoTimestamp
-                ? "Data tanggal mengikuti waktu realtime perangkat."
-                : "Anda mengatur tanggal secara manual. Pastikan format benar."}
+              Data tanggal mengikuti waktu realtime perangkat dan tidak dapat diubah.
             </p>
           </div>
           <div className="space-y-1">
@@ -1321,20 +1230,10 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
             <input
               type="text"
               value={timeStr}
-              onChange={(e) => {
-                const value = e.target.value;
-                setTimeStr(value);
-                if (typeof window !== 'undefined' && !autoTimestamp) {
-                  localStorage.setItem('manualTimeStr', value);
-                }
-              }}
-              readOnly={autoTimestamp}
-              className={`w-full rounded-2xl border-0 ring-1 ring-neutral-300 px-4 py-2.5 text-sm shadow-inner text-neutral-700 transition-colors ${
-                autoTimestamp ? "bg-neutral-50" : "bg-white focus:outline-none focus:ring-2 focus:ring-red-300"
-              }`}
-              placeholder="cth: 14.35.00"
+              readOnly
+              className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm shadow-inner text-neutral-700"
+              placeholder="Jam perangkat"
             />
-            <input type="hidden" name="jam" value={timeStr} />
           </div>
         </div>
 

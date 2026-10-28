@@ -23,7 +23,7 @@ async function resolveUserRole(uid: string, email: string | null | undefined): P
   const byId = await getDoc(doc(fb.db, "users", uid));
   if (byId.exists()) {
     const role = (byId.data() as { role?: string }).role;
-    if (role === "admin" || role === "pelaksana" || role === "viewer") return role;
+    if (role === "admin" || role === "pelaksana" || role === "viewer" || role === "sampoerna") return role;
   }
 
   if (!email) return null;
@@ -34,7 +34,7 @@ async function resolveUserRole(uid: string, email: string | null | undefined): P
   if (byEmail.empty) return null;
 
   const role = (byEmail.docs[0].data() as { role?: string }).role;
-  if (role === "admin" || role === "pelaksana" || role === "viewer") return role;
+  if (role === "admin" || role === "pelaksana" || role === "viewer" || role === "sampoerna") return role;
   return null;
 }
 

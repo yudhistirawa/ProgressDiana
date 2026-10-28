@@ -9,7 +9,7 @@ import DataHarianClient from "./DataHarianClient";
 
 export default function DataHarianPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [project, setProject] = useState<"diana" | "bungtomo" | "bisma" | null>(null);
+  const [project, setProject] = useState<"diana" | "bungtomo" | "bisma" | "sampoerna" | null>(null);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-[#f9fbff] via-white to-[#fdf6ff] text-neutral-900">
@@ -115,8 +115,8 @@ export default function DataHarianPage() {
               <div className="text-sm font-semibold text-neutral-900">Pilih Proyek</div>
               <div className="text-xs text-neutral-500">Laporan harian disimpan terpisah per proyek</div>
             </div>
-            <div className="inline-flex rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
-              {(["diana", "bungtomo", "bisma"] as const).map((p) => {
+            <div className="flex flex-wrap rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
+              {(["diana", "bungtomo", "bisma", "sampoerna"] as const).map((p) => {
                 const active = project === p;
                 return (
                   <button
@@ -127,7 +127,7 @@ export default function DataHarianPage() {
                       active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white"
                     ].join(" ")}
                   >
-                    {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : "Proyek Bung Tomo"}
+                    {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : p === "sampoerna" ? "Proyek MR Sampoerna Medan" : "Proyek Bung Tomo"}
                   </button>
                 );
               })}
