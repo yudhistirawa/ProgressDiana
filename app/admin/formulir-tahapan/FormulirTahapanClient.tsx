@@ -130,7 +130,7 @@ export default function FormulirTahapanClient() {
                   active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white"
                 ].join(" ")}
               >
-                {p === "diana" ? "Diana" : p === "bisma" ? "Bisma" : p === "sampoerna" ? "MR Sampoerna Medan" : "Bung Tomo"}
+                {p === "diana" ? "Diana" : p === "bisma" ? "Bisma" : p === "sampoerna" ? "DR Sampurna" : "Bung Tomo"}
               </button>
             );
           })}

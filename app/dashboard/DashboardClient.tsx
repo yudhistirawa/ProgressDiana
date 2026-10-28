@@ -90,7 +90,7 @@ export default function DashboardClient({ initialProject, lockedToSampoerna = fa
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-rose-500 mb-1">Selamat datang</p>
               <h1 className="text-2xl md:text-3xl font-bold text-neutral-900">Kelola progres dengan cepat dan rapi</h1>
-              <p className="text-sm text-neutral-600 mt-2">{lockedToSampoerna ? "Akses kerja khusus Proyek MR Sampoerna Medan." : "Pilih proyek dan mulai akses laporan Anda."}</p>
+              <p className="text-sm text-neutral-600 mt-2">{lockedToSampoerna ? "Akses kerja khusus Proyek DR Sampurna." : "Pilih proyek dan mulai akses laporan Anda."}</p>
             </div>
             <div className="inline-flex items-center gap-2 rounded-2xl bg-white/80 ring-1 ring-neutral-200 shadow-sm p-2">
               {(["diana", "bungtomo", "bisma", "sampoerna"] as const).filter((p) => !lockedToSampoerna || p === "sampoerna").map((p) => {
@@ -104,7 +104,7 @@ export default function DashboardClient({ initialProject, lockedToSampoerna = fa
                       active ? "bg-gradient-to-r from-rose-500 to-red-600 text-white shadow" : "text-neutral-700 hover:bg-white"
                     ].join(" ")}
                   >
-                    {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : p === "sampoerna" ? "Proyek MR Sampoerna Medan" : "Proyek Bung Tomo"}
+                    {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : p === "sampoerna" ? "Proyek DR Sampurna" : "Proyek Bung Tomo"}
                   </button>
                 );
               })}

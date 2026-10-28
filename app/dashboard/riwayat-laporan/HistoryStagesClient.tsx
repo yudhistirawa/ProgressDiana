@@ -40,7 +40,7 @@ export default function HistoryStagesClient({ project = "diana" }: { project?: P
   if (items.length === 0) {
     return (
       <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-6 text-center text-sm text-neutral-500">
-        Belum ada tahap untuk proyek {project === "bungtomo" ? "Bung Tomo" : project === "bisma" ? "Bisma" : project === "sampoerna" ? "MR Sampoerna Medan" : "Diana"}. Admin dapat menambah dari menu Kelola Formulir & Tahapan.
+        Belum ada tahap untuk proyek {project === "bungtomo" ? "Bung Tomo" : project === "bisma" ? "Bisma" : project === "sampoerna" ? "DR Sampurna" : "Diana"}. Admin dapat menambah dari menu Kelola Formulir & Tahapan.
       </div>
     );
   }

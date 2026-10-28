@@ -62,7 +62,7 @@ export default function DashboardPlanningPage({ searchParams }: Props) {
           <p className="text-xs sm:text-sm text-neutral-600">
             Proyek aktif:{" "}
             <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">
-              {projectParam === "diana" ? "Diana" : projectParam === "bisma" ? "Bisma" : projectParam === "sampoerna" ? "MR Sampoerna Medan" : "Bung Tomo"}
+              {projectParam === "diana" ? "Diana" : projectParam === "bisma" ? "Bisma" : projectParam === "sampoerna" ? "DR Sampurna" : "Bung Tomo"}
             </span>
           </p>
           <div className="inline-flex flex-wrap rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
@@ -102,7 +102,7 @@ export default function DashboardPlanningPage({ searchParams }: Props) {
                 projectParam === "sampoerna" ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white",
               ].join(" ")}
             >
-              MR Sampoerna Medan
+              DR Sampurna
             </Link>
           </div>
         </div>

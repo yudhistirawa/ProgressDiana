@@ -18,7 +18,7 @@ export type MaterialMovement = {
 
 export const MATERIAL_PROJECTS: { key: MaterialProject; label: string }[] = [
   { key: "diana", label: "Proyek Diana" }, { key: "bungtomo", label: "Proyek Bung Tomo" }, { key: "bisma", label: "Proyek Bisma" },
-  { key: "sampoerna", label: "Proyek MR Sampoerna Medan" },
+  { key: "sampoerna", label: "Proyek DR Sampurna" },
 ];
 export const MOVEMENT_LABELS: Record<MovementType, string> = {
   initial: "Stok awal", incoming: "Stok masuk", usage: "Pemakaian", correction: "Koreksi",

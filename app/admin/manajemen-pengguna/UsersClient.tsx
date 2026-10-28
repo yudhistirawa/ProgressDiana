@@ -43,7 +43,7 @@ export default function UsersClient({ type }: { type: UserClientType }) {
     type === "admin" ? "List User Admin" : 
     type === "pelaksana" ? "List User Pelaksana" : 
     type === "viewer" ? "List User Viewer" :
-    type === "sampoerna" ? "Petugas Khusus MR Sampoerna Medan" : "List User Admin Petugas";
+    type === "sampoerna" ? "Petugas Khusus DR Sampurna" : "List User Admin Petugas";
   const fb = getFirebaseClient();
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
@@ -164,7 +164,7 @@ export default function UsersClient({ type }: { type: UserClientType }) {
         )}
         {isSampoerna && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900 sm:text-sm">
-            Akun ini login melalui portal Pelaksana, tetapi dashboard dan seluruh akses kerjanya dikunci hanya untuk Proyek MR Sampoerna Medan.
+            Akun ini login melalui portal Pelaksana, tetapi dashboard dan seluruh akses kerjanya dikunci hanya untuk Proyek DR Sampurna.
           </div>
         )}
         <div className="flex items-center gap-2">
@@ -281,7 +281,7 @@ export default function UsersClient({ type }: { type: UserClientType }) {
                       <option value="admin">Admin</option>
                       <option value="pelaksana">Pelaksana</option>
                       <option value="viewer">Viewer</option>
-                      <option value="sampoerna">Petugas MR Sampoerna Medan</option>
+                      <option value="sampoerna">Petugas DR Sampurna</option>
                     </select>
                     <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-neutral-600">
                       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M6.3 9.3a1 1 0 0 1 1.4 0L12 13.6l4.3-4.3a1 1 0 1 1 1.4 1.4l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 0 1 0-1.4Z"/></svg>
@@ -291,7 +291,7 @@ export default function UsersClient({ type }: { type: UserClientType }) {
                     <p className="mt-1 text-[11px] text-neutral-500">Role dikunci sebagai pelaksana untuk Admin Petugas.</p>
                   )}
                   {isSampoerna && (
-                    <p className="mt-1 text-[11px] text-neutral-500">Role dikunci khusus untuk Proyek MR Sampoerna Medan.</p>
+                    <p className="mt-1 text-[11px] text-neutral-500">Role dikunci khusus untuk Proyek DR Sampurna.</p>
                   )}
                 </div>
                 <div>

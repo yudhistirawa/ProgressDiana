@@ -153,8 +153,8 @@ export default function ManajemenPengguna() {
                   <path d="M35 9h8v8h-8zM39 17v8" stroke="currentColor" strokeWidth="3" />
                 </svg>
               </div>
-              <div className="text-sm font-semibold">Petugas MR Sampoerna Medan</div>
-              <div className="mt-1 text-xs text-emerald-800">Akses hanya proyek Sampoerna</div>
+              <div className="text-sm font-semibold">Petugas DR Sampurna</div>
+              <div className="mt-1 text-xs text-emerald-800">Akses hanya Proyek DR Sampurna</div>
             </Link>
           </div>
         </main>

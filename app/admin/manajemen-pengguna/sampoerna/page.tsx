@@ -3,7 +3,7 @@ import Link from "next/link";
 import AvatarMenuClient from "../../components/AvatarMenuClient";
 import UsersClient from "../UsersClient";
 
-export const metadata = { title: "Petugas MR Sampoerna Medan - Manajemen Pengguna" };
+export const metadata = { title: "Petugas DR Sampurna - Manajemen Pengguna" };
 
 export default function UserSampoernaPage() {
   return (
@@ -14,7 +14,7 @@ export default function UserSampoernaPage() {
             <Link href="/admin/manajemen-pengguna" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-sm hover:bg-neutral-100" title="Kembali">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden><path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" /></svg>
             </Link>
-            <div className="text-sm font-semibold tracking-wide sm:text-base">Petugas MR Sampoerna Medan</div>
+            <div className="text-sm font-semibold tracking-wide sm:text-base">Petugas DR Sampurna</div>
           </div>
           <div className="col-span-12 flex items-center justify-end sm:col-span-6"><AvatarMenuClient /></div>
         </div>

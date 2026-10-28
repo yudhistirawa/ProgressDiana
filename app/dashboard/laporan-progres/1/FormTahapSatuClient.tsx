@@ -1001,7 +1001,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
               <option>Grahaku</option>
               <option>Bung Tomo</option>
               <option>Bisma</option>
-              <option>MR Sampoerna Medan</option>
+              <option>DR Sampurna</option>
             </select>
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>

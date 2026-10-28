@@ -9,7 +9,7 @@ const PROJECTS: Record<ProjectKey, { key: ProjectKey; label: string; badge: stri
   diana: { key: "diana", label: "Proyek Diana", badge: "Aktif" },
   bungtomo: { key: "bungtomo", label: "Proyek Bung Tomo", badge: "Baru" },
   bisma: { key: "bisma", label: "Proyek Bisma", badge: "Baru" },
-  sampoerna: { key: "sampoerna", label: "Proyek MR Sampoerna Medan", badge: "Baru" },
+  sampoerna: { key: "sampoerna", label: "Proyek DR Sampurna", badge: "Baru" },
 };
 
 export default function ProjectGridSection() {

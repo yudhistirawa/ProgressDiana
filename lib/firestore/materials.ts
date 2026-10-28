@@ -83,7 +83,7 @@ export type MaterialSubmission = {
 export async function submitMaterial(project: MaterialProject, input: MaterialSubmission, category: StockCategory = "material") {
   const ctx = context(project, category);
   const who = await actor(input.type !== "usage");
-  if (who.role === "sampoerna" && project !== "sampoerna") throw new Error("Akun ini hanya dapat mengakses Proyek MR Sampoerna Medan.");
+  if (who.role === "sampoerna" && project !== "sampoerna") throw new Error("Akun ini hanya dapat mengakses Proyek DR Sampurna.");
   if (!/^[\w-]{10,100}$/.test(input.operationId)) throw new Error("Identitas transaksi tidak valid.");
   const quantity = stockNumber(input.quantity);
   if (quantity < 0 || (!["initial", "correction"].includes(input.type) && quantity === 0)) throw new Error("Periksa jumlah material.");

@@ -40,7 +40,7 @@ export function listProjectKeys(): { key: ProjectKey; label: string }[] {
     { key: "diana", label: "Diana" },
     { key: "bungtomo", label: "Bung Tomo" },
     { key: "bisma", label: "Bisma" },
-    { key: "sampoerna", label: "MR Sampoerna Medan" },
+    { key: "sampoerna", label: "DR Sampurna" },
   ];
 }
 

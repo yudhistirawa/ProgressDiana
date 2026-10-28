@@ -40,7 +40,7 @@ export default function PlanningAdminClient() {
                   active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white",
                 ].join(" ")}
               >
-                {p.key === "diana" ? "Proyek Diana" : p.key === "bisma" ? "Proyek Bisma" : p.key === "sampoerna" ? "Proyek MR Sampoerna Medan" : "Proyek Bung Tomo"}
+                {p.key === "diana" ? "Proyek Diana" : p.key === "bisma" ? "Proyek Bisma" : p.key === "sampoerna" ? "Proyek DR Sampurna" : "Proyek Bung Tomo"}
               </button>
             );
           })}

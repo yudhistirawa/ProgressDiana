@@ -127,7 +127,7 @@ export default function DataHarianPage() {
                       active ? "bg-red-600 text-white shadow-sm" : "text-neutral-700 hover:bg-white"
                     ].join(" ")}
                   >
-                    {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : p === "sampoerna" ? "Proyek MR Sampoerna Medan" : "Proyek Bung Tomo"}
+                    {p === "diana" ? "Proyek Diana" : p === "bisma" ? "Proyek Bisma" : p === "sampoerna" ? "Proyek DR Sampurna" : "Proyek Bung Tomo"}
                   </button>
                 );
               })}

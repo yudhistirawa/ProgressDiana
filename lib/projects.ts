@@ -31,8 +31,8 @@ export const PROJECTS: Record<ProjectKey, {
     notificationCollection: "Progress_Bisma_Notifikasi",
   },
   sampoerna: {
-    label: "MR Sampoerna Medan",
-    fullLabel: "Proyek MR Sampoerna Medan",
+    label: "DR Sampurna",
+    fullLabel: "Proyek DR Sampurna",
     configKey: "stages_config_sampoerna",
     progressCollection: "Progress_Sampoerna",
     notificationCollection: "Progress_Sampoerna_Notifikasi",
