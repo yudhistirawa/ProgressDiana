@@ -10,6 +10,7 @@ type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 
 export default function DataHarianClient({ project = "diana" }: { project?: ProjectKey }) {
   const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana";
+  const usesSingleActiveForm = projectKey === "bungtomo" || projectKey === "sampoerna";
   const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : projectKey === "sampoerna" ? "Progress_Sampoerna" : "Progress_Diana";
   const { dailyStats, loading, error, filterMonth, setFilterMonth, filterYear, setFilterYear,
     selectedDate, selectedItems, detailLoading, loadDailyData, handleDateClick, closeModal } = useDailyData(progressCollection);
@@ -245,7 +246,7 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
                         <span className="inline-flex items-center rounded-full bg-red-600 text-white px-3 py-1 text-sm font-bold">
                           #{index + 1}
                         </span>
-                        {item.stage && (
+                        {!usesSingleActiveForm && item.stage && (
                           <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-xs font-semibold">
                             Tahap {item.stage}
                           </span>

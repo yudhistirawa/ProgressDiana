@@ -21,6 +21,7 @@ interface ProgressData {
 
 export default function ViewerLaporanProgressClient({ project = "diana" }: { project?: ProjectKey }) {
   const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana";
+  const usesSingleActiveForm = projectKey === "bungtomo" || projectKey === "sampoerna";
   const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : projectKey === "sampoerna" ? "Progress_Sampoerna" : "Progress_Diana";
   const [progressData, setProgressData] = useState<ProgressData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,7 +164,7 @@ export default function ViewerLaporanProgressClient({ project = "diana" }: { pro
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-rose-500 mb-1">Laporan Progres</p>
-              <h2 className="text-xl sm:text-2xl font-bold text-neutral-900">Progres Berdasarkan Tahapan</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-neutral-900">{usesSingleActiveForm ? "Laporan Progres" : "Progres Berdasarkan Tahapan"}</h2>
               <p className="text-sm text-neutral-600">Filter berdasarkan tahun & bulan. Pilih proyek di atas.</p>
             </div>
             <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-xs font-semibold text-neutral-700 ring-1 ring-neutral-200 shadow-sm backdrop-blur">
@@ -229,10 +230,10 @@ export default function ViewerLaporanProgressClient({ project = "diana" }: { pro
       {/* Progress Stats */}
       {!loading && progressData.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {stagesToDisplay.map(stageNumber => {
+          {(usesSingleActiveForm ? stagesToDisplay.slice(0, 1) : stagesToDisplay).map(stageNumber => {
             const data = progressData.find(d => d.stage === stageNumber);
             const totalItems = data?.totalItems || 0;
-            const title = stageTitles[stageNumber] || `Tahap ${stageNumber}`;
+            const title = stageTitles[stageNumber] || (usesSingleActiveForm ? "Laporan Progres" : `Tahap ${stageNumber}`);
             return (
               <Link
                 key={stageNumber}
@@ -242,7 +243,7 @@ export default function ViewerLaporanProgressClient({ project = "diana" }: { pro
                 <div className="absolute inset-0 bg-gradient-to-br from-white via-white to-rose-50 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="relative flex items-start justify-between gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-100 text-rose-600 shadow-inner">
-                    <span className="text-2xl font-bold">{stageNumber}</span>
+                    <span className="text-2xl font-bold">{usesSingleActiveForm ? "✓" : stageNumber}</span>
                   </div>
                   <div className="text-right">
                     <p className="text-3xl font-extrabold text-neutral-900">{totalItems}</p>
@@ -252,7 +253,7 @@ export default function ViewerLaporanProgressClient({ project = "diana" }: { pro
                 <div className="mt-4">
                   <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
                   <p className="text-sm text-neutral-500 mt-1">
-                    Klik untuk lihat detail tahap {stageNumber}.
+                    {usesSingleActiveForm ? "Klik untuk melihat detail laporan." : `Klik untuk lihat detail tahap ${stageNumber}.`}
                   </p>
                 </div>
                 <div className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-rose-500 group-hover:translate-x-1 transition-transform">

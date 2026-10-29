@@ -148,6 +148,7 @@ export default function StageReportListClient({
   stageId?: string | number | null;
 }) {
   const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana";
+  const usesSingleActiveForm = projectKey === "bungtomo" || projectKey === "sampoerna";
   const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : projectKey === "sampoerna" ? "Progress_Sampoerna" : "Progress_Diana";
   const notifCollection = projectKey === "bungtomo" ? "Progress_BungTomo_Notifikasi" : projectKey === "bisma" ? "Progress_Bisma_Notifikasi" : projectKey === "sampoerna" ? "Progress_Sampoerna_Notifikasi" : "Progress_Diana_Notifikasi";
   const stageNumber = Number(stage);
@@ -307,10 +308,11 @@ export default function StageReportListClient({
   }, [stageOptions, normalizedStageId, stageNumber]);
 
   const stageDisplay = useMemo(() => {
+    if (usesSingleActiveForm) return stageName || "Laporan Progres";
     const stageLabel = Number.isNaN(stageNumber) ? String(stage) : String(stageNumber);
     if (!stageName) return `Tahap ${stageLabel}`;
     return `Tahap ${stageLabel} — ${stageName}`;
-  }, [stage, stageName, stageNumber]);
+  }, [stage, stageName, stageNumber, usesSingleActiveForm]);
 
   useEffect(() => {
     if (!selected || typeof window === "undefined") return;
@@ -1318,7 +1320,8 @@ export default function StageReportListClient({
         .slice(0, 60) || "foto";
 
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet(`Laporan Tahap ${stage}`);
+    const exportTitle = usesSingleActiveForm ? "Laporan Progres" : `Laporan Tahap ${stage}`;
+    const sheet = workbook.addWorksheet(exportTitle);
 
     sheet.columns = [
       { header: "Sub Judul", key: "title", width: 26 },
@@ -1326,7 +1329,7 @@ export default function StageReportListClient({
     ];
 
     // Header
-    const headerRow = sheet.addRow([`Laporan Tahap ${stage}`, ""]);
+    const headerRow = sheet.addRow([exportTitle, ""]);
     headerRow.font = { bold: true, size: 14 };
     headerRow.alignment = { horizontal: "center" };
     sheet.mergeCells(headerRow.number, 1, headerRow.number, 2);
@@ -1405,7 +1408,7 @@ export default function StageReportListClient({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `laporan-tahap-${stage}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    link.download = `${usesSingleActiveForm ? "laporan-progres" : `laporan-tahap-${stage}`}-${new Date().toISOString().slice(0, 10)}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1449,7 +1452,7 @@ export default function StageReportListClient({
             Reset
           </button>
         </div>
-        {!readOnly && (
+        {!readOnly && !usesSingleActiveForm && (
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:ml-auto">
             <select
               value={bulkTarget}
@@ -1609,7 +1612,7 @@ export default function StageReportListClient({
                         </svg>
                         Edit
                       </button>
-                      <div className="flex items-center gap-2">
+                      {!usesSingleActiveForm && <div className="flex items-center gap-2">
                         <select
                           value={moveTarget[item.id] ?? ""}
                           onChange={(e) => setMoveTarget((prev) => ({ ...prev, [item.id]: e.target.value }))}
@@ -1645,7 +1648,7 @@ export default function StageReportListClient({
                             </span>
                           )}
                         </button>
-                      </div>
+                      </div>}
                       <button
                         type="button"
                         onClick={() => showDeleteAlert(item)}
@@ -1751,7 +1754,9 @@ export default function StageReportListClient({
       </ul>
 
       {filtered.length === 0 && (
-        <div className="text-center text-sm text-neutral-500 py-10">Belum ada laporan dari petugas untuk tahap ini.</div>
+        <div className="text-center text-sm text-neutral-500 py-10">
+          {usesSingleActiveForm ? "Belum ada laporan dari petugas." : "Belum ada laporan dari petugas untuk tahap ini."}
+        </div>
       )}
 
       {/* Pagination */}

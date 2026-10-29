@@ -23,6 +23,7 @@ export default function StageTitleClient({
   project?: ProjectKey;
 }) {
   const [stageName, setStageName] = useState<string>("");
+  const usesSingleActiveForm = project === "bungtomo" || project === "sampoerna";
   const stageNumber = Number(stage);
   const normalizedStageId = useMemo(() => {
     if (stageId === undefined || stageId === null || stageId === "") return null;
@@ -40,7 +41,9 @@ export default function StageTitleClient({
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
         let name = "";
         if (Array.isArray(list)) {
-          if (normalizedStageId !== null) {
+          if (usesSingleActiveForm) {
+            name = (list.find((item: any) => item?.active === true) ?? list[0])?.name ?? "";
+          } else if (normalizedStageId !== null) {
             const match = list.find((s: any) => s?.id === normalizedStageId);
             name = match?.name ?? "";
           }
@@ -54,10 +57,10 @@ export default function StageTitleClient({
         setStageName("");
       }
     })();
-  }, [project, normalizedStageId, stageNumber]);
+  }, [project, normalizedStageId, stageNumber, usesSingleActiveForm]);
 
   const stageLabel = Number.isNaN(stageNumber) ? String(stage) : String(stageNumber);
-  const display = stageName ? `Tahap ${stageLabel} — ${stageName}` : `Tahap ${stageLabel}`;
+  const display = usesSingleActiveForm ? (stageName || "Laporan Progres") : (stageName ? `Tahap ${stageLabel} — ${stageName}` : `Tahap ${stageLabel}`);
 
   return <div className="text-sm sm:text-base font-semibold tracking-wide">{display}</div>;
 }

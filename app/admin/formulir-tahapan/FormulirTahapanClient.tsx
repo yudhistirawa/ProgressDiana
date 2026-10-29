@@ -4,7 +4,7 @@ import { getFirebaseClient } from "@/lib/firebaseClient";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
 type FieldSpec = { id: number; label: string; type: "text" | "photo" };
-type Stage = { id: number; name: string; date: string; fields?: FieldSpec[] | string[] };
+type Stage = { id: number; name: string; date: string; fields?: FieldSpec[] | string[]; active?: boolean };
 
 type AlertState = {
   type: 'error' | 'warning' | 'info';
@@ -78,7 +78,27 @@ export default function FormulirTahapanClient() {
   const [photoPreview, setPhotoPreview] = useState<{ url: string; title: string; show: boolean }>({ url: '', title: '', show: false });
 
   // Tampilkan sesuai urutan yang tersimpan (bisa di-reorder)
+  const usesSingleActiveForm = project === "bungtomo" || project === "sampoerna";
   const ordered = useMemo(() => stages, [stages]);
+  const limitsPhotoFields = usesSingleActiveForm;
+  const canAddPhotoField = (fields: FieldSpec[]) => !limitsPhotoFields || !fields.some((field) => field.type === "photo");
+  const normalizePhotoFields = (fields: FieldSpec[]) => {
+    if (!limitsPhotoFields) return fields;
+    let photoFound = false;
+    return fields.filter((field) => {
+      if (field.type !== "photo") return true;
+      if (photoFound) return false;
+      photoFound = true;
+      return true;
+    });
+  };
+
+  const isActiveForm = (stage: Stage, index: number) =>
+    usesSingleActiveForm && (stage.active === true || (!stages.some((item) => item.active === true) && index === 0));
+
+  const activateForm = (stageId: number) => {
+    save(stages.map((stage) => ({ ...stage, active: stage.id === stageId })));
+  };
 
   const showDeleteAlert = (stage: Stage) => {
     setStageToDelete(stage);
@@ -116,7 +136,7 @@ export default function FormulirTahapanClient() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-sm sm:text-base font-semibold">Daftar Tahapan & Formulir</h2>
-          <p className="text-xs text-neutral-500">Form yang sudah ada saat ini milik Proyek Diana. Pilih proyek lain untuk membuat set baru.</p>
+          <p className="text-xs text-neutral-500">{usesSingleActiveForm ? `Admin dapat membuat beberapa formulir ${project === "bungtomo" ? "Bung Tomo" : "DR Sampurna"}. Hanya formulir aktif yang ditampilkan kepada petugas dan semua field bersifat opsional.` : "Pilih proyek untuk mengatur tahapan dan formulirnya."}</p>
         </div>
         <div className="flex flex-wrap rounded-xl ring-1 ring-neutral-200 bg-neutral-50 p-1">
           {(["diana", "bungtomo", "bisma", "sampoerna"] as const).map((p) => {
@@ -143,7 +163,14 @@ export default function FormulirTahapanClient() {
         {ordered.map((s, idx)=> (
           <li key={s.id} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
             <div className="px-3 py-2.5 flex items-center gap-3">
-              <div className="min-w-0 flex-1"><div className="text-sm font-medium truncate">{s.name}</div></div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-medium truncate">{s.name}</div>
+                  {isActiveForm(s, idx) && (
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Aktif</span>
+                  )}
+                </div>
+              </div>
               <div className="hidden sm:block text-xs text-neutral-500 min-w-[110px] text-right">{new Date(s.date).toLocaleDateString('id-ID')}</div>
               <div className="text-right min-w-[210px]">
                 <div className="mt-1 flex items-center justify-end gap-2">
@@ -154,8 +181,11 @@ export default function FormulirTahapanClient() {
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M12 18 18 12H6l6 6Z"/></svg>
                   </button>
                   <button type="button" onClick={()=>{ setShowForm({id:s.id}); setName(s.name); setDate(s.date); }} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Edit</button>
-                  <button type="button" onClick={()=>{ setEditingStage(s); setEditFields(Array.isArray(s.fields) ? s.fields as FieldSpec[] : []); }} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Edit Form</button>
+                  <button type="button" onClick={()=>{ setEditingStage(s); setEditFields(normalizePhotoFields(Array.isArray(s.fields) ? s.fields as FieldSpec[] : [])); }} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Edit Form</button>
                   <button type="button" onClick={()=> setDetail(s)} className="inline-flex items-center justify-center h-7 px-3 rounded-full ring-1 ring-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 text-xs">Detail</button>
+                  {usesSingleActiveForm && !isActiveForm(s, idx) && (
+                    <button type="button" onClick={() => activateForm(s.id)} className="inline-flex items-center justify-center h-7 px-3 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 text-xs">Aktifkan</button>
+                  )}
                   <button type="button" onClick={() => showDeleteAlert(s)} className="inline-flex items-center justify-center h-7 px-3 rounded-full bg-red-500 text-white hover:bg-red-600 text-xs">Hapus</button>
                 </div>
               </div>
@@ -164,20 +194,22 @@ export default function FormulirTahapanClient() {
         ))}
       </ul>
 
-      <button type="button" onClick={()=>{ setAddStep(1); setAddName(""); setBuilderFields([{ id: Date.now(), label: "Nama", type: "text" }, { id: Date.now()+1, label: "Lokasi Proyek", type: "text" }]); }} className="fixed bottom-6 right-6 inline-flex items-center justify-center h-12 w-12 rounded-2xl ring-1 ring-neutral-300 bg-white text-neutral-700 shadow-md hover:bg-neutral-100" title="Tambah Tahapan" aria-label="Tambah Tahapan">
-        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor"><path d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z"/></svg>
-      </button>
+      {
+        <button type="button" onClick={()=>{ setAddStep(1); setAddName(""); setBuilderFields([{ id: Date.now(), label: "Nama", type: "text" }, { id: Date.now()+1, label: "Lokasi Proyek", type: "text" }]); }} className="fixed bottom-6 right-6 inline-flex items-center justify-center h-12 w-12 rounded-2xl ring-1 ring-neutral-300 bg-white text-neutral-700 shadow-md hover:bg-neutral-100" title={usesSingleActiveForm ? "Tambah Formulir" : "Tambah Tahapan"} aria-label={usesSingleActiveForm ? "Tambah Formulir" : "Tambah Tahapan"}>
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor"><path d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z"/></svg>
+        </button>
+      }
 
       {/* Add Wizard - Step 1: Nama Tahapan */}
       {addStep === 1 && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={()=> setAddStep(0)}>
           <div className="relative w-full max-w-lg" onClick={(e)=> e.stopPropagation()}>
             <div className="rounded-2xl bg-white ring-1 ring-neutral-200 shadow-xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-neutral-200 text-center font-semibold text-sm">Tambah Tahapan</div>
+              <div className="px-4 py-3 border-b border-neutral-200 text-center font-semibold text-sm">{usesSingleActiveForm ? "Tambah Formulir" : "Tambah Tahapan"}</div>
               <div className="p-6">
                 <div className="space-y-2 max-w-xl mx-auto">
-                  <div className="text-sm">Nama Tahapan</div>
-                  <input value={addName} onChange={(e)=> setAddName(e.target.value)} placeholder="Masukkan Nama Tahapan" className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-4 py-2.5 text-sm shadow-inner placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-300" />
+                  <div className="text-sm">{usesSingleActiveForm ? "Nama Formulir" : "Nama Tahapan"}</div>
+                  <input value={addName} onChange={(e)=> setAddName(e.target.value)} placeholder={usesSingleActiveForm ? "Masukkan Nama Formulir" : "Masukkan Nama Tahapan"} className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-4 py-2.5 text-sm shadow-inner placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-300" />
                 </div>
                 <div className="pt-6 flex items-center justify-center gap-3">
                   <button type="button" onClick={()=> setAddStep(0)} className="rounded-xl bg-white ring-1 ring-neutral-300 px-5 py-2 text-sm hover:bg-neutral-50">Batal</button>
@@ -210,7 +242,7 @@ export default function FormulirTahapanClient() {
                   {addMenuTop && (
                     <div className="absolute right-0 top-full mt-2 w-44 rounded-xl bg-white ring-1 ring-neutral-200 shadow-lg p-1 z-10">
                       <button type="button" onClick={() => { setBuilderFields((prev)=> [...prev, { id: Date.now(), label: "Field Teks", type: "text" }]); setAddMenuTop(false); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Field Teks</button>
-                      <button type="button" onClick={() => { setBuilderFields((prev)=> [...prev, { id: Date.now()+1, label: "Upload Foto", type: "photo" }]); setAddMenuTop(false); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Upload Foto</button>
+                      {canAddPhotoField(builderFields) && <button type="button" onClick={() => { setBuilderFields((prev)=> [...prev, { id: Date.now()+1, label: "Upload Foto", type: "photo" }]); setAddMenuTop(false); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Upload Foto</button>}
                     </div>
                   )}
                 </div>
@@ -241,7 +273,7 @@ export default function FormulirTahapanClient() {
                           {addMenuRow === idx && (
                             <div className="absolute right-0 top-full mt-2 w-40 rounded-xl bg-white ring-1 ring-neutral-200 shadow-lg p-1 z-10">
                               <button type="button" onClick={() => { const next=[...builderFields]; next.splice(idx+1,0,{ id: Date.now(), label: "Field Teks", type: "text" }); setBuilderFields(next); setAddMenuRow(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Field Teks</button>
-                              <button type="button" onClick={() => { const next=[...builderFields]; next.splice(idx+1,0,{ id: Date.now()+1, label: "Upload Foto", type: "photo" }); setBuilderFields(next); setAddMenuRow(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Upload Foto</button>
+                               {canAddPhotoField(builderFields) && <button type="button" onClick={() => { const next=[...builderFields]; next.splice(idx+1,0,{ id: Date.now()+1, label: "Upload Foto", type: "photo" }); setBuilderFields(next); setAddMenuRow(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Upload Foto</button>}
                             </div>
                           )}
                         </div>
@@ -264,7 +296,7 @@ export default function FormulirTahapanClient() {
                   <button type="button" onClick={()=> {
                     const d=new Date();
                     const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                    const item: Stage = { id: Date.now(), name: addName || 'Tahapan Baru', date: iso, fields: builderFields };
+                    const item: Stage = { id: Date.now(), name: addName || (usesSingleActiveForm ? 'Formulir Baru' : 'Tahapan Baru'), date: iso, fields: normalizePhotoFields(builderFields), ...(usesSingleActiveForm ? { active: stages.length === 0 } : {}) };
                     save([...stages, item]);
                     setAddStep(0);
                   }} className="rounded-xl bg-neutral-100 ring-1 ring-neutral-300 px-6 py-2.5 text-sm font-semibold hover:bg-neutral-200">Simpan</button>
@@ -521,7 +553,7 @@ export default function FormulirTahapanClient() {
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-neutral-600">
-                    <span className="font-medium">Tahapan:</span> {editingStage.name} |
+                    <span className="font-medium">{usesSingleActiveForm ? "Formulir:" : "Tahapan:"}</span> {editingStage.name} |
                     <span className="font-medium ml-2">Tanggal:</span> {new Date(editingStage.date).toLocaleDateString('id-ID')}
                   </div>
                   <div className="flex items-center gap-2">
@@ -557,7 +589,7 @@ export default function FormulirTahapanClient() {
                   {addMenuTop && (
                     <div className="absolute right-0 top-full mt-2 w-44 rounded-xl bg-white ring-1 ring-neutral-200 shadow-lg p-1 z-10">
                       <button type="button" onClick={() => { setEditFields((prev)=> [...prev, { id: Date.now(), label: "Field Teks", type: "text" }]); setAddMenuTop(false); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Field Teks</button>
-                      <button type="button" onClick={() => { setEditFields((prev)=> [...prev, { id: Date.now()+1, label: "Upload Foto", type: "photo" }]); setAddMenuTop(false); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Upload Foto</button>
+                       {canAddPhotoField(editFields) && <button type="button" onClick={() => { setEditFields((prev)=> [...prev, { id: Date.now()+1, label: "Upload Foto", type: "photo" }]); setAddMenuTop(false); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Upload Foto</button>}
                     </div>
                   )}
                 </div>
@@ -589,7 +621,7 @@ export default function FormulirTahapanClient() {
                           {addMenuRow === idx && (
                             <div className="absolute right-0 top-full mt-2 w-40 rounded-xl bg-white ring-1 ring-neutral-200 shadow-lg p-1 z-10">
                               <button type="button" onClick={() => { const next=[...editFields]; next.splice(idx+1,0,{ id: Date.now(), label: "Field Teks", type: "text" }); setEditFields(next); setAddMenuRow(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Field Teks</button>
-                              <button type="button" onClick={() => { const next=[...editFields]; next.splice(idx+1,0,{ id: Date.now()+1, label: "Upload Foto", type: "photo" }); setEditFields(next); setAddMenuRow(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Upload Foto</button>
+                               {canAddPhotoField(editFields) && <button type="button" onClick={() => { const next=[...editFields]; next.splice(idx+1,0,{ id: Date.now()+1, label: "Upload Foto", type: "photo" }); setEditFields(next); setAddMenuRow(null); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 text-sm">Upload Foto</button>}
                             </div>
                           )}
                         </div>
@@ -612,7 +644,7 @@ export default function FormulirTahapanClient() {
                   <button type="button" onClick={() => {
                     // Save the edited form
                     const updatedStages = stages.map(s =>
-                      s.id === editingStage.id ? { ...s, fields: editFields } : s
+                      s.id === editingStage.id ? { ...s, fields: normalizePhotoFields(editFields) } : s
                     );
                     save(updatedStages);
                     setEditingStage(null);

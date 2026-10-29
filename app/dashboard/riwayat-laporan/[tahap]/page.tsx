@@ -9,9 +9,9 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props) {
-  const { tahap } = await params;
+  await params;
   return {
-    title: `Riwayat Tahap ${tahap} - Sistem Dokumentasi Progres`,
+    title: "Riwayat Laporan - Sistem Dokumentasi Progres",
     description: "Daftar pengiriman laporan sebelumnya",
   };
 }
@@ -20,7 +20,9 @@ export default async function RiwayatTahap({ params, searchParams }: Props) {
   const { tahap } = await params;
   const sp = searchParams ? await searchParams : undefined;
   const projectParam = dashboardProject(sp?.project);
-  const label = `Riwayat Tahap ${tahap}`;
+  const usesSingleActiveForm = projectParam === "bungtomo" || projectParam === "sampoerna";
+  const label = usesSingleActiveForm ? "Riwayat Laporan" : `Riwayat Tahap ${tahap}`;
+  const backHref = usesSingleActiveForm ? "/dashboard" : `/dashboard/riwayat-laporan?project=${projectParam}`;
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
@@ -40,7 +42,7 @@ export default async function RiwayatTahap({ params, searchParams }: Props) {
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-4xl px-3 sm:px-4 py-3 flex items-center justify-between">
           <Link
-            href={`/dashboard/riwayat-laporan?project=${projectParam}`}
+            href={backHref}
             className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm"
             title="Kembali"
           >

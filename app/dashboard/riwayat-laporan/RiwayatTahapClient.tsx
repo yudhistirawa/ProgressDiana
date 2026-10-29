@@ -19,6 +19,19 @@ type DisplayItem = {
 
 type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 
+function toMillis(value: any): number {
+  if (typeof value === "number") return value;
+  if (value && typeof value.toMillis === "function") return value.toMillis();
+  if (value?.seconds) return Number(value.seconds) * 1000;
+  const parsed = Date.parse(String(value || ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function photoValues(value: any): string[] {
+  const values = Array.isArray(value) ? value : [value];
+  return values.map((item) => String(item || "").trim()).filter(Boolean);
+}
+
 export default function RiwayatTahapClient({ stage, project = "diana" }: { stage: number; project?: ProjectKey }) {
   const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana";
   const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : projectKey === "sampoerna" ? "Progress_Sampoerna" : "Progress_Diana";
@@ -27,38 +40,57 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
   const [asc, setAsc] = useState(false);
   const [selected, setSelected] = useState<DisplayItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const usesSingleActiveForm = projectKey === "bungtomo" || projectKey === "sampoerna";
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setError("");
       const fb = getFirebaseClient();
       if (!fb) {
+        setError("Firebase belum terkonfigurasi.");
         setLoading(false);
         return;
       }
 
       try {
-        const { collection, query, where, orderBy, onSnapshot } = await import("firebase/firestore");
+        const { collection, query, where, onSnapshot } = await import("firebase/firestore");
+        const { getAuth } = await import("firebase/auth");
+        const currentUser = getAuth(fb.app).currentUser;
+        if (!currentUser) {
+          setError("Sesi login tidak ditemukan. Silakan login kembali.");
+          setLoading(false);
+          return;
+        }
+
         const col = collection(fb.db, progressCollection);
-        const q = query(col, where("stage", "==", stage), orderBy("createdAt", "desc"));
+        // Batasi dari Firestore berdasarkan UID. Filter tahap dan urutan dilakukan
+        // lokal agar tidak memerlukan composite index dan data petugas lain tidak terbaca.
+        const q = query(col, where("uid", "==", currentUser.uid));
 
         // Use onSnapshot for real-time updates
         const unsubscribe = onSnapshot(q, (snap) => {
-          const cloud = snap.docs.map((d) => {
+          const cloud = snap.docs.flatMap((d) => {
             const data = d.data();
+            const matchesStage = usesSingleActiveForm || Number(data.stage) === Number(stage);
+            if (!matchesStage) return [];
+
             const answers = Array.isArray(data?.answers)
               ? (data.answers as any[]).map((a) => ({ label: a.label, type: a.type, value: a.value }))
               : undefined;
             const firstTwo = answers?.filter((a) => a.type !== "photo").map((a) => String(a.value || "")).filter(Boolean).slice(0, 2) || [];
-            const files = answers?.filter((a) => a.type === "photo").map((a) => String(a.value || "")).filter(Boolean);
-            const title = data?.pekerjaan || firstTwo[0] || "-";
-            const subtitle = data?.lokasi || firstTwo[1] || "-";
+            const files = answers?.filter((a) => a.type === "photo").flatMap((a) => photoValues(a.value)) || [];
+            const title = data?.pekerjaan || firstTwo[0] || "Laporan Progres";
+            const subtitle = data?.lokasi || firstTwo[1] || data?.alamat || "-";
+            const createdAt = toMillis(data.createdAt ?? data.uploadedAt ?? data.ts);
 
-            return {
+            return [{
               id: d.id,
-              createdAt: data.createdAt ?? Date.now(),
-              tanggal: data.tanggal || "",
-              jam: data.jam || "",
+              createdAt,
+              tanggal: data.tanggal || (createdAt ? new Date(createdAt).toLocaleDateString("id-ID") : ""),
+              jam: data.jam || (createdAt ? new Date(createdAt).toLocaleTimeString("id-ID", { hour12: false }) : ""),
               latitude: data.latitude ?? null,
               longitude: data.longitude ?? null,
               accuracy: data.accuracy ?? null,
@@ -67,13 +99,14 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
               subtitle,
               answers,
               files,
-            } as DisplayItem;
+            } as DisplayItem];
           });
           setItems(cloud);
           setLoading(false);
         }, (err) => {
           console.error("Error loading from Firestore:", err);
           setItems([]);
+          setError("Riwayat laporan gagal dimuat. Periksa koneksi lalu coba lagi.");
           setLoading(false);
         });
 
@@ -81,6 +114,7 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
       } catch (err) {
         console.error("Error setting up Firestore listener:", err);
         setItems([]);
+        setError("Riwayat laporan gagal dimuat. Periksa koneksi lalu coba lagi.");
         setLoading(false);
       }
     };
@@ -89,7 +123,7 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
     return () => {
       unsubscribe?.then(unsub => unsub?.());
     };
-  }, [stage, progressCollection]);
+  }, [stage, progressCollection, usesSingleActiveForm]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -130,15 +164,32 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
         </button>
       </div>
 
+      {loading && (
+        <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-500">
+          Memuat riwayat laporan...
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       {/* List */}
-      <ul className="space-y-3">
+      {!loading && !error && <ul className="space-y-3">
         {filtered.map((i) => (
           <li key={i.id} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
             <div className="px-3 py-2.5 flex items-center gap-3">
-              {/* Foto placeholder */}
-              <div className="h-10 w-10 shrink-0 rounded-full bg-neutral-100 grid place-items-center text-[11px] text-neutral-600 ring-1 ring-neutral-200">
-                Foto
-              </div>
+              {i.files?.[0] ? (
+                <button type="button" onClick={() => setLightboxUrl(i.files?.[0] || null)} className="h-10 w-10 shrink-0 overflow-hidden rounded-full ring-1 ring-neutral-200" title="Lihat foto">
+                  <img src={i.files[0]} alt="Foto laporan" className="h-full w-full object-cover" />
+                </button>
+              ) : (
+                <div className="h-10 w-10 shrink-0 rounded-full bg-neutral-100 grid place-items-center text-[10px] text-neutral-500 ring-1 ring-neutral-200">
+                  Tanpa foto
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium truncate">{i.title || "-"}</div>
                 <div className="text-xs text-neutral-500 truncate">{i.subtitle || "-"}</div>
@@ -159,16 +210,16 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
             </div>
           </li>
         ))}
-      </ul>
+      </ul>}
 
-      {filtered.length === 0 && (
-        <div className="text-center text-sm text-neutral-500 py-8">Belum ada riwayat untuk tahap ini.</div>
+      {!loading && !error && filtered.length === 0 && (
+        <div className="text-center text-sm text-neutral-500 py-8">{project === "bungtomo" || project === "sampoerna" ? "Belum ada riwayat laporan." : "Belum ada riwayat untuk tahap ini."}</div>
       )}
 
       {/* Detail modal */}
       {selected && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={() => setSelected(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl ring-1 ring-neutral-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-xl ring-1 ring-neutral-200" onClick={(e) => e.stopPropagation()}>
             <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
               <div className="text-sm font-semibold">Detail Laporan</div>
               <button className="h-8 w-8 grid place-items-center rounded-full bg-neutral-100" onClick={() => setSelected(null)}>
@@ -183,10 +234,10 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
                 if (Array.isArray(a) && a.length) {
                   return (
                     <div className="space-y-1">
-                      {a.map((x, idx) => (
+                      {a.filter((x) => x.type !== "photo").map((x, idx) => (
                         <div key={idx} className="flex items-start justify-between gap-2">
                           <div className="text-neutral-500">{x.label}</div>
-                          <div className="font-medium text-right truncate max-w-[60%]">{x.type === "photo" ? (x.value || "-") : (x.value || "-")}</div>
+                          <div className="font-medium text-right break-words max-w-[60%]">{x.value || "-"}</div>
                         </div>
                       ))}
                     </div>
@@ -228,11 +279,27 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
                   <div className="font-medium">{selected.accuracy ? `± ${Math.round(selected.accuracy)} m` : "-"}</div>
                 </div>
               </div>
-              {Array.isArray((selected as any).files) && (selected as any).files.length > 0 && (
-                <div className="pt-2 text-xs text-neutral-500">File: {(selected as any).files.join(", ")}</div>
+              {Array.isArray(selected.files) && selected.files.length > 0 && (
+                <div className="pt-3">
+                  <div className="mb-2 text-neutral-500">Foto laporan</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {selected.files.map((url, index) => (
+                      <button key={`${url}-${index}`} type="button" onClick={() => setLightboxUrl(url)} className="overflow-hidden rounded-xl ring-1 ring-neutral-200" title={`Lihat foto ${index + 1}`}>
+                        <img src={url} alt={`Foto laporan ${index + 1}`} className="aspect-square w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/85 p-4" onClick={() => setLightboxUrl(null)}>
+          <button type="button" onClick={() => setLightboxUrl(null)} className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white text-xl text-neutral-900" aria-label="Tutup foto">×</button>
+          <img src={lightboxUrl} alt="Foto laporan ukuran penuh" className="max-h-[90vh] max-w-full rounded-xl object-contain" onClick={(event) => event.stopPropagation()} />
         </div>
       )}
     </div>

@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getFirebaseClient } from "@/lib/firebaseClient";
 import { doc, getDoc } from "firebase/firestore";
 
 type FieldSpec = { id: number; label: string; type: "text" | "photo" };
-type StageItem = { id: number; name: string; date?: string | number; fields?: FieldSpec[] | any[] };
+type StageItem = { id: number; name: string; date?: string | number; fields?: FieldSpec[] | any[]; active?: boolean };
 
 type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 const CONFIG_KEYS: Record<ProjectKey, string> = {
@@ -16,11 +17,18 @@ const CONFIG_KEYS: Record<ProjectKey, string> = {
 };
 
 export default function UserStagesClient({ project = "diana" }: { project?: ProjectKey }) {
+  const router = useRouter();
   const [stages, setStages] = useState<StageItem[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const usesSingleActiveForm = project === "bungtomo" || project === "sampoerna";
 
   useEffect(() => {
+    setLoaded(false);
     const fb = getFirebaseClient();
-    if (!fb) return; // require Firebase configured
+    if (!fb) {
+      setLoaded(true);
+      return;
+    }
     (async () => {
       try {
         const key = CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana"];
@@ -34,9 +42,19 @@ export default function UserStagesClient({ project = "diana" }: { project?: Proj
         }
       } catch {
         setStages([]);
+      } finally {
+        setLoaded(true);
       }
     })();
   }, [project]);
+
+  useEffect(() => {
+    if (!loaded || !usesSingleActiveForm) return;
+    const activeForm = stages.find((stage) => stage.active === true) ?? stages[0];
+    if (!activeForm) return;
+    const stageId = activeForm.id;
+    router.replace(`/dashboard/laporan-progres/1?project=${project}${stageId != null ? `&stageId=${stageId}` : ""}`);
+  }, [loaded, project, router, stages, usesSingleActiveForm]);
 
   const items = useMemo(() => {
     return stages.map((s, i) => {
@@ -47,6 +65,14 @@ export default function UserStagesClient({ project = "diana" }: { project?: Proj
       } as { id: number; stageId?: number; title: string };
     });
   }, [stages]);
+
+  if (!loaded || (usesSingleActiveForm && items.length > 0)) {
+    return (
+      <div className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm p-6 text-center text-sm text-neutral-500">
+        Membuka formulir aktif...
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (

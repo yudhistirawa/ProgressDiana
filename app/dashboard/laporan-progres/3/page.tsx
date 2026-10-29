@@ -5,8 +5,8 @@ import { formStorageKey, unsavedFlagKey, UNSAVED_PROGRESS_CONFIRM_MESSAGE } from
 import ProgressStageTitle from "../ProgressStageTitle";
 
 export const metadata = {
-  title: "Laporan Tahap 3 - Sistem Dokumentasi Progres",
-  description: "Formulir pengisian laporan progres tahap 3",
+  title: "Laporan Progres - Sistem Dokumentasi Progres",
+  description: "Formulir pengisian laporan progres",
 };
 
 type Props = { searchParams?: { project?: string; stageId?: string } };
@@ -14,6 +14,7 @@ type Props = { searchParams?: { project?: string; stageId?: string } };
 export default function LaporanTahapTiga({ searchParams }: Props) {
   const projectParam = dashboardProject(searchParams?.project);
   const stageId = searchParams?.stageId;
+  const backHref = projectParam === "bungtomo" || projectParam === "sampoerna" ? "/dashboard" : `/dashboard/laporan-progres?project=${projectParam}`;
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
       <div className="pointer-events-none absolute inset-0 -z-10 hidden sm:block">
@@ -32,13 +33,13 @@ export default function LaporanTahapTiga({ searchParams }: Props) {
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-2xl sm:max-w-3xl px-3 sm:px-4 py-3 flex items-center justify-between">
           <ConfirmNavigationButton
-            href={`/dashboard/laporan-progres?project=${projectParam}`}
+            href={backHref}
             draftStorageKey={formStorageKey(3)}
             unsavedSessionKey={unsavedFlagKey(3)}
             confirmMessage={UNSAVED_PROGRESS_CONFIRM_MESSAGE}
             className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm"
             title="Kembali"
-            aria-label="Kembali ke daftar laporan progres"
+            aria-label={backHref === "/dashboard" ? "Kembali ke dashboard" : "Kembali ke daftar laporan progres"}
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
               <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />

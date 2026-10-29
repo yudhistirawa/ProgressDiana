@@ -11,10 +11,9 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props) {
-  const { tahap } = await params;
-  const n = Number(tahap);
+  await params;
   return {
-    title: `Tahap ${Number.isFinite(n) ? n : tahap} - Laporan Progres`,
+    title: "Laporan Progres - Sistem Dokumentasi Progres",
     description: "Detail progres, unggah bukti, dan ringkasan aktivitas",
   };
 }
@@ -24,6 +23,7 @@ export default async function TahapDetail({ params, searchParams }: Props) {
   const sp = searchParams ? await searchParams : undefined;
   const projectParam = dashboardProject(sp?.project);
   const stageIdParam = sp?.stageId;
+  const backHref = projectParam === "bungtomo" || projectParam === "sampoerna" ? "/dashboard" : `/dashboard/laporan-progres?project=${projectParam}`;
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-white text-neutral-900">
@@ -47,13 +47,13 @@ export default async function TahapDetail({ params, searchParams }: Props) {
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-neutral-200 shadow-sm">
         <div className="mx-auto max-w-4xl px-3 sm:px-4 py-3 flex items-center justify-between">
           <ConfirmNavigationButton
-            href="/dashboard/laporan-progres"
+            href={backHref}
             draftStorageKey={formStorageKey(tahap)}
             unsavedSessionKey={unsavedFlagKey(tahap)}
             confirmMessage={UNSAVED_PROGRESS_CONFIRM_MESSAGE}
             className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 shadow-sm"
             title="Kembali"
-            aria-label="Kembali ke daftar laporan progres"
+            aria-label={backHref === "/dashboard" ? "Kembali ke dashboard" : "Kembali ke daftar laporan progres"}
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
               <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />

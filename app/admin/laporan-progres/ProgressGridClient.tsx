@@ -24,6 +24,7 @@ export default function ProgressGridClient({
   project?: ProjectKey;
 }) {
   const [stages, setStages] = useState<StageItem[]>([]);
+  const usesSingleActiveForm = project === "bungtomo" || project === "sampoerna";
 
   useEffect(() => {
     const fb = getFirebaseClient();
@@ -33,15 +34,17 @@ export default function ProgressGridClient({
         const ref = doc(fb.db, "config", CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana"]);
         const snap = await getDoc(ref);
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
-        const items: StageItem[] = Array.isArray(list)
-          ? list.map((s: any, i: number) => ({ id: i + 1, stageId: s?.id, title: s?.name || `Tahap ${i + 1}` }))
+        const activeForm = Array.isArray(list) ? (list.find((item: any) => item?.active === true) ?? list[0]) : undefined;
+        const source = Array.isArray(list) && usesSingleActiveForm ? (activeForm ? [activeForm] : []) : list;
+        const items: StageItem[] = Array.isArray(source)
+          ? source.map((s: any, i: number) => ({ id: i + 1, stageId: s?.id, title: s?.name || (usesSingleActiveForm ? "Laporan Progres" : `Tahap ${i + 1}`) }))
           : [];
         setStages(items);
       } catch {
         setStages([]);
       }
     })();
-  }, [project]);
+  }, [project, usesSingleActiveForm]);
 
   const [internalQuery, setInternalQuery] = useState("");
   const query = controlledQuery ?? internalQuery;

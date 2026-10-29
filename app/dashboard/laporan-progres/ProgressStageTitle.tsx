@@ -12,7 +12,8 @@ type Props = {
 };
 
 export default function ProgressStageTitle({ project, stage, stageId }: Props) {
-  const fallback = `Laporan Tahap ${stage}`;
+  const usesSingleActiveForm = project === "bungtomo" || project === "sampoerna";
+  const fallback = usesSingleActiveForm ? "Laporan Progres" : `Laporan Tahap ${stage}`;
   const [title, setTitle] = useState(fallback);
 
   useEffect(() => {
@@ -28,10 +29,15 @@ export default function ProgressStageTitle({ project, stage, stageId }: Props) {
         const list = snap.exists() ? snap.data()?.list : undefined;
         if (!Array.isArray(list)) return;
 
-        const selected = stageId
+        const selected = usesSingleActiveForm
+          ? (list.find((item) => item?.active === true) ?? list[0])
+          : stageId
           ? list.find((item) => String(item?.id) === String(stageId))
           : list[Number(stage) - 1];
-        const configuredName = typeof selected?.name === "string" ? selected.name.trim() : "";
+        const rawName = typeof selected?.name === "string" ? selected.name.trim() : "";
+        const configuredName = usesSingleActiveForm && /^(laporan\s+)?tahap(an)?\s*\d+$/i.test(rawName)
+          ? "Laporan Progres"
+          : rawName;
 
         if (active && configuredName) setTitle(configuredName);
       } catch {
@@ -42,7 +48,7 @@ export default function ProgressStageTitle({ project, stage, stageId }: Props) {
     return () => {
       active = false;
     };
-  }, [fallback, project, stage, stageId]);
+  }, [fallback, project, stage, stageId, usesSingleActiveForm]);
 
   return <div className="text-sm sm:text-base font-semibold tracking-wide text-center">{title}</div>;
 }

@@ -369,9 +369,8 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
   const [schema, setSchema] = useState<FieldSpec[]>([]);
   const [resolvedStageId, setResolvedStageId] = useState<number | string | null>(stage);
   const [resolvedStageName, setResolvedStageName] = useState<string>(`Tahap ${stage}`);
-  const [dynPhotoFiles, setDynPhotoFiles] = useState<Array<File | null>>([]);
-  const [dynPhotoNames, setDynPhotoNames] = useState<string[]>([]);
-  const [dynPhotoPreviews, setDynPhotoPreviews] = useState<Array<string | null>>([]);
+  const [dynPhotoFiles, setDynPhotoFiles] = useState<File[][]>([]);
+  const [dynPhotoPreviews, setDynPhotoPreviews] = useState<string[][]>([]);
   const dynInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [uploadPerc, setUploadPerc] = useState<number[]>([]);
   const [uploadErr, setUploadErr] = useState<(string | null)[]>([]);
@@ -381,6 +380,10 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
     const n = Number(stageId);
     return Number.isNaN(n) ? String(stageId) : n;
   }, [stageId]);
+  const allowMultiplePhotos = projectKey === "bungtomo" || projectKey === "sampoerna";
+  const usesSingleActiveForm = projectKey === "bungtomo" || projectKey === "sampoerna";
+  const fieldsAreOptional = usesSingleActiveForm;
+  const fallbackFormName = usesSingleActiveForm ? "Laporan Progres" : `Tahap ${stage}`;
 
   // Initialize clock from device time and keep ticking
   useEffect(() => {
@@ -406,7 +409,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
             { id: 2, label: "Lokasi Proyek", type: "text" },
           ]);
           setResolvedStageId(normalizedStageId ?? stage);
-          setResolvedStageName(`Tahap ${stage}`);
+          setResolvedStageName(fallbackFormName);
           return;
         }
         const ref = doc(fb.db, "config", configKey);
@@ -414,13 +417,15 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
         let item: any | undefined;
         if (Array.isArray(list)) {
-          if (normalizedStageId !== null) {
+          if (usesSingleActiveForm) {
+            item = list.find((form: any) => form?.active === true) ?? list[0];
+          } else if (normalizedStageId !== null) {
             item = list.find((s: any) => s?.id === normalizedStageId);
           } else {
             item = list[stage - 1] ?? list[0];
           }
         }
-        const stageName = item?.name ?? `Tahap ${stage}`;
+        const stageName = item?.name ?? fallbackFormName;
         setResolvedStageId(item?.id ?? normalizedStageId ?? stage);
         setResolvedStageName(stageName);
         let fields: FieldSpec[] = [];
@@ -440,9 +445,8 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
         }
         setSchema(fields);
         const size = fields.length;
-        setDynPhotoFiles(Array.from({ length: size }, () => null));
-        setDynPhotoNames(Array.from({ length: size }, () => ""));
-        setDynPhotoPreviews(Array.from({ length: size }, () => null));
+        setDynPhotoFiles(Array.from({ length: size }, () => []));
+        setDynPhotoPreviews(Array.from({ length: size }, () => []));
         setUploadPerc(Array.from({ length: size }, () => 0));
         setUploadErr(Array.from({ length: size }, () => null));
       } catch {
@@ -451,10 +455,10 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
           { id: 2, label: "Lokasi Proyek", type: "text" },
         ]);
         setResolvedStageId(normalizedStageId ?? stage);
-        setResolvedStageName(`Tahap ${stage}`);
+        setResolvedStageName(fallbackFormName);
       }
     })();
-  }, [stage, configKey, normalizedStageId]);
+  }, [stage, configKey, fallbackFormName, normalizedStageId, projectKey, usesSingleActiveForm]);
 
   // Geolocation realtime
   useEffect(() => {
@@ -526,6 +530,59 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
     }
   }
 
+  async function addDynamicPhotos(fieldIndex: number, selectedFiles: File[]) {
+    const files = allowMultiplePhotos ? selectedFiles : selectedFiles.slice(0, 1);
+    for (const originalFile of files) {
+      let preparedFile = originalFile;
+      if (gps.lat && gps.lon) {
+        try {
+          let userInfo: { name?: string; email?: string; uid?: string } | undefined;
+          try {
+            const { getAuth } = await import("firebase/auth");
+            const auth = getAuth();
+            if (auth.currentUser) {
+              userInfo = {
+                name: auth.currentUser.displayName ?? undefined,
+                email: auth.currentUser.email ?? undefined,
+                uid: auth.currentUser.uid,
+              };
+            }
+          } catch {}
+          preparedFile = await addGeotagToImage(originalFile, gps.lat, gps.lon, gps.accuracy, userInfo, address);
+        } catch (error) {
+          console.warn("Gagal menambahkan geotag, menggunakan foto asli:", error);
+        }
+      }
+
+      const webp = await fileToWebp(preparedFile, 0.85);
+      const previewUrl = URL.createObjectURL(webp);
+
+      setDynPhotoFiles((current) => {
+        const next = current.map((items) => [...items]);
+        const existing = next[fieldIndex] ?? [];
+        next[fieldIndex] = allowMultiplePhotos ? [...existing, webp] : [webp];
+        return next;
+      });
+      setDynPhotoPreviews((current) => {
+        const next = current.map((items) => [...items]);
+        const existing = next[fieldIndex] ?? [];
+        if (!allowMultiplePhotos) existing.forEach((url) => URL.revokeObjectURL(url));
+        next[fieldIndex] = allowMultiplePhotos ? [...existing, previewUrl] : [previewUrl];
+        return next;
+      });
+    }
+  }
+
+  function removeDynamicPhoto(fieldIndex: number, photoIndex: number) {
+    setDynPhotoFiles((current) => current.map((items, index) => index === fieldIndex ? items.filter((_, i) => i !== photoIndex) : items));
+    setDynPhotoPreviews((current) => current.map((items, index) => {
+      if (index !== fieldIndex) return items;
+      const removed = items[photoIndex];
+      if (removed) URL.revokeObjectURL(removed);
+      return items.filter((_, i) => i !== photoIndex);
+    }));
+  }
+
   return (
     <div className="mx-auto max-w-md sm:max-w-lg rounded-3xl ring-1 ring-neutral-200 bg-white/95 shadow-xl backdrop-blur p-4 sm:p-6">
       <div className="text-center mb-4">
@@ -538,9 +595,11 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
           e.preventDefault();
           if (isSubmitting) return;
 
-          // Validate that at least one photo is selected
-          const hasPhoto = dynPhotoFiles.some(file => file !== null);
-          if (!hasPhoto) {
+          // Bung Tomo membolehkan seluruh field kosong. Proyek lain tetap
+          // mengikuti aturan lama: minimal satu foto jika form memiliki field foto.
+          const hasPhoto = dynPhotoFiles.some((files) => files.length > 0);
+          const requiresPhoto = !fieldsAreOptional && schema.some((field) => field.type === "photo");
+          if (requiresPhoto && !hasPhoto) {
             alert("Silakan pilih minimal satu foto untuk diupload");
             return;
           }
@@ -568,48 +627,53 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
           for (let i = 0; i < schema.length; i++) {
             const fdef = schema[i];
             if (fdef.type === "photo") {
-              const file = dynPhotoFiles[i];
-              let value: any = null;
-              if (file && fb && storage) {
-                try {
-                  const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage");
-                  // Use unique object name to avoid 412 (precondition) when same filename is uploaded twice
-                  const uniq = (typeof crypto !== "undefined" && (crypto as any).randomUUID)
-                    ? (crypto as any).randomUUID()
-                    : Math.random().toString(36).slice(2);
-                  const path = `${storagePrefix}/${recId}/${i + 1}_${uniq}_${file.name}`;
-                  const r = ref(storage, path);
-                  await new Promise<void>((resolve, reject) => {
-                    const task = uploadBytesResumable(r, file, { contentType: file.type || "image/webp" });
-                    task.on(
-                      "state_changed",
-                      (snap) => {
-                        const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-                        setUploadPerc((arr) => {
-                          const next = [...arr];
-                          next[i] = pct;
-                          return next;
-                        });
-                      },
-                      (err) => {
-                        setUploadErr((arr) => {
-                          const next = [...arr];
-                          next[i] = err?.message || "Upload gagal";
-                          return next;
-                        });
-                        reject(err);
-                      },
-                      () => resolve()
-                    );
-                  });
-                  value = await getDownloadURL(r);
-                } catch (e: any) {
-                  value = null;
-                }
-              } else {
-                value = file?.name ?? null;
+              const files = dynPhotoFiles[i] ?? [];
+              if (files.length === 0) {
+                answers.push({ label: fdef.label, type: "photo", value: null });
+                continue;
               }
-              answers.push({ label: fdef.label, type: "photo", value });
+
+              for (let photoIndex = 0; photoIndex < files.length; photoIndex++) {
+                const file = files[photoIndex];
+                let value: any = file.name;
+                if (fb && storage) {
+                  try {
+                    const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage");
+                    const uniq = (typeof crypto !== "undefined" && (crypto as any).randomUUID)
+                      ? (crypto as any).randomUUID()
+                      : Math.random().toString(36).slice(2);
+                    const path = `${storagePrefix}/${recId}/${i + 1}_${photoIndex + 1}_${uniq}_${file.name}`;
+                    const storageRef = ref(storage, path);
+                    await new Promise<void>((resolve, reject) => {
+                      const task = uploadBytesResumable(storageRef, file, { contentType: file.type || "image/webp" });
+                      task.on(
+                        "state_changed",
+                        (snap) => {
+                          const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+                          setUploadPerc((arr) => {
+                            const next = [...arr];
+                            next[i] = pct;
+                            return next;
+                          });
+                        },
+                        (err) => {
+                          setUploadErr((arr) => {
+                            const next = [...arr];
+                            next[i] = err?.message || "Upload gagal";
+                            return next;
+                          });
+                          reject(err);
+                        },
+                        () => resolve()
+                      );
+                    });
+                    value = await getDownloadURL(storageRef);
+                  } catch {
+                    value = null;
+                  }
+                }
+                answers.push({ label: fdef.label, type: "photo", value });
+              }
             } else {
               const val = String(fd.get(`f_${i}`) || "");
               answers.push({ label: fdef.label, type: "text", value: val });
@@ -638,7 +702,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
               id: recId,
               stage,
               stageId: resolvedStageId ?? stage,
-              stageName: resolvedStageName || `Tahap ${stage}`,
+              stageName: resolvedStageName || fallbackFormName,
               project: projectKey,
               answers,
               uid,
@@ -674,7 +738,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
                   stageId: data.stageId,
                   stageName: data.stageName,
                   project: data.project,
-                  title: data.stageName ? `Laporan ${data.stageName}` : `Laporan Tahap ${data.stage}`,
+                  title: data.stageName ? `Laporan ${data.stageName}` : (usesSingleActiveForm ? "Laporan Progres" : `Laporan Tahap ${data.stage}`),
                   message: firstTwoTexts.join(" | ") || "Laporan masuk",
                   tanggal: data.tanggal,
                   jam: data.jam,
@@ -727,7 +791,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
             alert("✅ Data laporan berhasil dikirim ke admin!\n\nAnda akan diarahkan kembali ke halaman laporan progress.");
 
             // Redirect back to progress report page
-            window.location.href = "/dashboard/laporan-progres";
+            window.location.href = usesSingleActiveForm ? "/dashboard" : `/dashboard/laporan-progres?project=${projectKey}`;
           }, 300);
         }}
       >
@@ -735,7 +799,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
         {schema.map((f, i) => (
           <div className="space-y-1" key={f.id ?? i}>
             <label className="block text-xs font-medium text-neutral-700">
-              {f.label} {f.type === "text" && <span className="text-red-600">*</span>}
+              {f.label} {f.type === "text" && !fieldsAreOptional && <span className="text-red-600">*</span>}
             </label>
             {f.type === "text" ? (
               <input
@@ -743,7 +807,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
                 name={`f_${i}`}
                 type="text"
                 placeholder={f.label}
-                required
+                required={!fieldsAreOptional}
                 className="w-full rounded-2xl border-0 ring-1 ring-neutral-300 bg-white px-4 py-2.5 text-sm shadow-inner placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-300"
               />
             ) : (
@@ -796,65 +860,9 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
                   capture="environment"
                   className="sr-only"
                   onChange={async (e) => {
-                    const f0 = e.target.files?.[0];
-                    if (!f0) return;
-
-                    console.log('📸 Camera photo taken, adding geotag...');
-
-                    setDynPhotoNames((arr) => {
-                      const next = [...arr];
-                      next[i] = "Menambahkan geotag...";
-                      return next;
-                    });
-
-                    // Add geotag to the image if GPS is available
-                    let geotaggedFile = f0;
-                    if (gps.lat && gps.lon) {
-                      try {
-                        // Get current user information for geotagging
-                        let userInfo: { name?: string; email?: string; uid?: string } | undefined;
-                        try {
-                          const { getAuth } = await import("firebase/auth");
-                          const auth = getAuth();
-                          if (auth.currentUser) {
-                            userInfo = {
-                              name: auth.currentUser.displayName ?? undefined,
-                              email: auth.currentUser.email ?? undefined,
-                              uid: auth.currentUser.uid
-                            };
-                          }
-                        } catch (authError) {
-                          console.warn('⚠️ Could not get user info for geotagging:', authError);
-                        }
-
-                        geotaggedFile = await addGeotagToImage(f0, gps.lat, gps.lon, gps.accuracy, userInfo, address);
-                        console.log('✅ Comprehensive geotag added successfully');
-                      } catch (geotagError) {
-                        console.warn('⚠️ Geotagging failed, using original file:', geotagError);
-                        geotaggedFile = f0;
-                      }
-                    } else {
-                      console.warn('⚠️ No GPS data available for geotagging');
-                    }
-
-                    const webp = await fileToWebp(geotaggedFile, 0.85);
-                    setDynPhotoFiles((arr) => {
-                      const next = [...arr];
-                      next[i] = webp;
-                      return next;
-                    });
-                    setDynPhotoNames((arr) => {
-                      const next = [...arr];
-                      next[i] = `${webp.name} (${formatBytes(webp.size)})`;
-                      return next;
-                    });
-                    setDynPhotoPreviews((arr) => {
-                      const next = [...arr];
-                      const prev = next[i];
-                      if (prev) URL.revokeObjectURL(prev as any);
-                      next[i] = URL.createObjectURL(webp);
-                      return next;
-                    });
+                    const selected = Array.from(e.target.files ?? []);
+                    if (selected.length > 0) await addDynamicPhotos(i, selected);
+                    e.target.value = "";
                   }}
                 />
 
@@ -863,79 +871,43 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
                   id={`gallery_${i}`}
                   type="file"
                   accept="image/*"
+                  multiple={allowMultiplePhotos}
                   className="sr-only"
                   onChange={async (e) => {
-                    const f0 = e.target.files?.[0];
-                    if (!f0) return;
-                    setDynPhotoNames((arr) => {
-                      const next = [...arr];
-                      next[i] = "Menambahkan geotag...";
-                      return next;
-                    });
-
-                    // Add geotag to the image if GPS is available
-                    let geotaggedFile = f0;
-                    if (gps.lat && gps.lon) {
-                      try {
-                        // Get current user information for geotagging
-                        let userInfo: { name?: string; email?: string; uid?: string } | undefined;
-                        try {
-                          const { getAuth } = await import("firebase/auth");
-                          const auth = getAuth();
-                          if (auth.currentUser) {
-                            userInfo = {
-                              name: auth.currentUser.displayName ?? undefined,
-                              email: auth.currentUser.email ?? undefined,
-                              uid: auth.currentUser.uid
-                            };
-                          }
-                        } catch (authError) {
-                          console.warn('⚠️ Could not get user info for geotagging:', authError);
-                        }
-
-                        geotaggedFile = await addGeotagToImage(f0, gps.lat, gps.lon, gps.accuracy, userInfo, address);
-                        console.log('✅ Comprehensive geotag added successfully');
-                      } catch (geotagError) {
-                        console.warn('⚠️ Geotagging failed, using original file:', geotagError);
-                        geotaggedFile = f0;
-                      }
-                    } else {
-                      console.warn('⚠️ No GPS data available for geotagging');
-                    }
-
-                    const webp = await fileToWebp(geotaggedFile, 0.85);
-                    setDynPhotoFiles((arr) => {
-                      const next = [...arr];
-                      next[i] = webp;
-                      return next;
-                    });
-                    setDynPhotoNames((arr) => {
-                      const next = [...arr];
-                      next[i] = `${webp.name} (${formatBytes(webp.size)})`;
-                      return next;
-                    });
-                    setDynPhotoPreviews((arr) => {
-                      const next = [...arr];
-                      const prev = next[i];
-                      if (prev) URL.revokeObjectURL(prev as any);
-                      next[i] = URL.createObjectURL(webp);
-                      return next;
-                    });
+                    const selected = Array.from(e.target.files ?? []);
+                    if (selected.length > 0) await addDynamicPhotos(i, selected);
+                    e.target.value = "";
                   }}
                 />
 
+                {allowMultiplePhotos && (
+                  <p className="text-[11px] text-neutral-500">Bisa menambahkan lebih dari satu foto dari kamera atau galeri.</p>
+                )}
+
                 {/* Preview and controls - shown only when photo is selected */}
-                {dynPhotoPreviews[i] && (
+                {(dynPhotoPreviews[i] ?? []).length > 0 && (
                   <div className="mt-2">
-                    <div className="inline-flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setLightboxUrl(dynPhotoPreviews[i] as string)}
-                        className="overflow-hidden rounded-xl ring-1 ring-neutral-200 shadow-sm hover:shadow-md transition-shadow"
-                        title="Lihat pratinjau"
-                      >
-                        <img src={dynPhotoPreviews[i] as string} alt="Preview foto" className="block h-20 w-20 object-cover" />
-                      </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {(dynPhotoPreviews[i] ?? []).map((preview, photoIndex) => (
+                        <div key={preview} className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl(preview)}
+                            className="overflow-hidden rounded-xl ring-1 ring-neutral-200 shadow-sm hover:shadow-md transition-shadow"
+                            title={`Lihat foto ${photoIndex + 1}`}
+                          >
+                            <img src={preview} alt={`Preview foto ${photoIndex + 1}`} className="block h-20 w-20 object-cover" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeDynamicPhoto(i, photoIndex)}
+                            className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-red-600 text-xs text-white shadow"
+                            aria-label={`Hapus foto ${photoIndex + 1}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
                       <button
                         type="button"
                         onClick={() => {
@@ -946,7 +918,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
                         }}
                         className="text-xs px-3 py-1.5 rounded-full border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700"
                       >
-                        Ganti Foto
+                        {allowMultiplePhotos ? "Tambah Foto" : "Ganti Foto"}
                       </button>
                     </div>
                     {typeof uploadPerc[i] === "number" && uploadPerc[i] > 0 && (

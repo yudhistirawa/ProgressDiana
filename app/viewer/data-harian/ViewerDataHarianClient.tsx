@@ -7,6 +7,7 @@ type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
 
 export default function ViewerDataHarianClient({ project = "diana" }: { project?: ProjectKey }) {
   const projectKey: ProjectKey = project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana";
+  const usesSingleActiveForm = projectKey === "bungtomo" || projectKey === "sampoerna";
   const progressCollection = projectKey === "bungtomo" ? "Progress_BungTomo" : projectKey === "bisma" ? "Progress_Bisma" : projectKey === "sampoerna" ? "Progress_Sampoerna" : "Progress_Diana";
   const { dailyStats, loading, error, filterMonth, setFilterMonth, filterYear, setFilterYear,
     selectedDate, selectedItems, detailLoading, loadDailyData, handleDateClick, closeModal } = useDailyData(progressCollection);
@@ -163,7 +164,7 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
                     <div className="mb-4 flex items-start justify-between border-b border-neutral-200 pb-3">
                       <div className="flex items-center gap-2">
                         <span className="inline-flex items-center rounded-full bg-red-600 text-white px-3 py-1 text-sm font-bold">#{index + 1}</span>
-                        {item.stage && <span className="inline-flex items-center rounded-md bg-blue-100 text-blue-800 px-2 py-1 text-xs font-medium">Tahap {item.stage}</span>}
+                        {!usesSingleActiveForm && item.stage && <span className="inline-flex items-center rounded-md bg-blue-100 text-blue-800 px-2 py-1 text-xs font-medium">Tahap {item.stage}</span>}
                       </div>
                       <div className="text-right">
                         <div className="text-xs text-neutral-500">Waktu Upload</div>

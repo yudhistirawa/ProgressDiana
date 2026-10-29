@@ -10,6 +10,7 @@ type Props = { params: { tahap: string }; searchParams?: { project?: string } };
 export default function ViewerStageDetailPage({ params, searchParams }: Props) {
   const stage = params.tahap;
   const projectParam = normalizeProject(searchParams?.project);
+  const usesSingleActiveForm = projectParam === "bungtomo" || projectParam === "sampoerna";
 
   return (
     <div className="relative min-h-screen w-full bg-neutral-50 text-neutral-900">
@@ -22,7 +23,7 @@ export default function ViewerStageDetailPage({ params, searchParams }: Props) {
                 <path d="M13.7 7.3a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l4 4a1 1 0 0 0 1.4-1.4L10.41 12l3.3-3.3a1 1 0 0 0 0-1.4Z" />
               </svg>
             </Link>
-            <h1 className="text-lg font-semibold text-neutral-900">Detail Laporan Tahap {stage}</h1>
+            <h1 className="text-lg font-semibold text-neutral-900">{usesSingleActiveForm ? "Detail Laporan" : `Detail Laporan Tahap ${stage}`}</h1>
           </div>
           <div className="col-span-6 flex items-center justify-end gap-2">
             <AvatarMenuClient />
