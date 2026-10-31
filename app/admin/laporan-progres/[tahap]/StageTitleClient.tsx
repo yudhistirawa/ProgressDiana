@@ -41,10 +41,10 @@ export default function StageTitleClient({
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
         let name = "";
         if (Array.isArray(list)) {
-          if (usesSingleActiveForm) {
+          if (usesSingleActiveForm && normalizedStageId === null) {
             name = (list.find((item: any) => item?.active === true) ?? list[0])?.name ?? "";
           } else if (normalizedStageId !== null) {
-            const match = list.find((s: any) => s?.id === normalizedStageId);
+            const match = list.find((item: any) => String(item?.id) === String(normalizedStageId));
             name = match?.name ?? "";
           }
           if (!name && Number.isFinite(stageNumber)) {

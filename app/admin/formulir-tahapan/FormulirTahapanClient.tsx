@@ -80,7 +80,9 @@ export default function FormulirTahapanClient() {
   // Tampilkan sesuai urutan yang tersimpan (bisa di-reorder)
   const usesSingleActiveForm = project === "bungtomo" || project === "sampoerna";
   const ordered = useMemo(() => stages, [stages]);
-  const limitsPhotoFields = usesSingleActiveForm;
+  // Semua proyek menggunakan satu field foto per formulir. Petugas tetap dapat
+  // menambahkan beberapa foto melalui field tunggal tersebut.
+  const limitsPhotoFields = true;
   const canAddPhotoField = (fields: FieldSpec[]) => !limitsPhotoFields || !fields.some((field) => field.type === "photo");
   const normalizePhotoFields = (fields: FieldSpec[]) => {
     if (!limitsPhotoFields) return fields;

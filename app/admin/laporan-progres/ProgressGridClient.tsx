@@ -34,8 +34,9 @@ export default function ProgressGridClient({
         const ref = doc(fb.db, "config", CONFIG_KEYS[project === "bungtomo" ? "bungtomo" : project === "bisma" ? "bisma" : project === "sampoerna" ? "sampoerna" : "diana"]);
         const snap = await getDoc(ref);
         const list = snap.exists() ? (snap.data()?.list as any[] | undefined) : undefined;
-        const activeForm = Array.isArray(list) ? (list.find((item: any) => item?.active === true) ?? list[0]) : undefined;
-        const source = Array.isArray(list) && usesSingleActiveForm ? (activeForm ? [activeForm] : []) : list;
+        // Admin selalu melihat seluruh formulir, termasuk formulir yang tidak aktif.
+        // Penyaringan ke satu formulir aktif hanya dilakukan pada alur petugas.
+        const source = list;
         const items: StageItem[] = Array.isArray(source)
           ? source.map((s: any, i: number) => ({ id: i + 1, stageId: s?.id, title: s?.name || (usesSingleActiveForm ? "Laporan Progres" : `Tahap ${i + 1}`) }))
           : [];

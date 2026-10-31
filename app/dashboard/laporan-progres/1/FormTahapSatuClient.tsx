@@ -380,7 +380,9 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
     const n = Number(stageId);
     return Number.isNaN(n) ? String(stageId) : n;
   }, [stageId]);
-  const allowMultiplePhotos = projectKey === "bungtomo" || projectKey === "sampoerna";
+  // Satu field foto di sisi admin dapat menampung beberapa foto petugas untuk
+  // seluruh proyek. Aturan field wajib/opsional tetap ditentukan terpisah.
+  const allowMultiplePhotos = true;
   const usesSingleActiveForm = projectKey === "bungtomo" || projectKey === "sampoerna";
   const fieldsAreOptional = usesSingleActiveForm;
   const fallbackFormName = usesSingleActiveForm ? "Laporan Progres" : `Tahap ${stage}`;
@@ -595,7 +597,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
           e.preventDefault();
           if (isSubmitting) return;
 
-          // Bung Tomo membolehkan seluruh field kosong. Proyek lain tetap
+          // Proyek dengan field opsional boleh dikirim kosong. Proyek lain tetap
           // mengikuti aturan lama: minimal satu foto jika form memiliki field foto.
           const hasPhoto = dynPhotoFiles.some((files) => files.length > 0);
           const requiresPhoto = !fieldsAreOptional && schema.some((field) => field.type === "photo");
