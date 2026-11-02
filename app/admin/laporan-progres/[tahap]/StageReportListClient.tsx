@@ -1452,7 +1452,7 @@ export default function StageReportListClient({
             Reset
           </button>
         </div>
-        {!readOnly && !usesSingleActiveForm && (
+        {!readOnly && (
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:ml-auto">
             <select
               value={bulkTarget}
@@ -1612,7 +1612,7 @@ export default function StageReportListClient({
                         </svg>
                         Edit
                       </button>
-                      {!usesSingleActiveForm && <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                         <select
                           value={moveTarget[item.id] ?? ""}
                           onChange={(e) => setMoveTarget((prev) => ({ ...prev, [item.id]: e.target.value }))}
@@ -1648,7 +1648,7 @@ export default function StageReportListClient({
                             </span>
                           )}
                         </button>
-                      </div>}
+                      </div>
                       <button
                         type="button"
                         onClick={() => showDeleteAlert(item)}
