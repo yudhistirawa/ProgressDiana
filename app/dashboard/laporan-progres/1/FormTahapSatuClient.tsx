@@ -337,6 +337,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
   const [fileWajibPreview, setFileWajibPreview] = useState<string | null>(null);
   const [fileOpsionalPreview, setFileOpsionalPreview] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxRotation, setLightboxRotation] = useState(0);
   const [dateStr, setDateStr] = useState<string>("");
   const [timeStr, setTimeStr] = useState<string>("");
   const [gpsStatus, setGpsStatus] = useState<"init" | "tracking" | "denied" | "unsupported" | "error">("init");
@@ -1265,7 +1266,7 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
       {lightboxUrl && (
         <div
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setLightboxUrl(null)}
+          onClick={() => { setLightboxUrl(null); setLightboxRotation(0); }}
         >
           <div
             className="relative max-w-[92vw] max-h-[86vh]"
@@ -1274,11 +1275,17 @@ export default function FormTahapSatuClient({ stage = 1, project = "diana", stag
             <img
               src={lightboxUrl}
               alt="Preview foto"
-              className="max-w-full max-h-[86vh] object-contain rounded-xl shadow-2xl"
+              className="max-w-full max-h-[86vh] object-contain rounded-xl shadow-2xl transition-transform duration-200"
+              style={{ transform: `rotate(${lightboxRotation}deg)` }}
             />
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2 rounded-full bg-black/70 p-2">
+              <button type="button" onClick={() => setLightboxRotation((value) => value - 90)} className="rounded-full bg-white px-3 py-1 text-sm text-neutral-900" title="Putar ke kiri">↺</button>
+              <button type="button" onClick={() => setLightboxRotation(0)} className="rounded-full bg-white px-3 py-1 text-sm text-neutral-900">Reset</button>
+              <button type="button" onClick={() => setLightboxRotation((value) => value + 90)} className="rounded-full bg-white px-3 py-1 text-sm text-neutral-900" title="Putar ke kanan">↻</button>
+            </div>
             <button
               type="button"
-              onClick={() => setLightboxUrl(null)}
+              onClick={() => { setLightboxUrl(null); setLightboxRotation(0); }}
               className="absolute -top-3 -right-3 h-9 w-9 rounded-full bg-white text-neutral-800 shadow ring-1 ring-neutral-200 grid place-items-center"
               title="Tutup"
             >

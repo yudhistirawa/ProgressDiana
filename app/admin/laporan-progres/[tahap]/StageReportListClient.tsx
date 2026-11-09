@@ -81,6 +81,26 @@ const CONFIG_KEYS: Record<ProjectKey, string> = {
   sampoerna: "stages_config_sampoerna",
 };
 
+async function compressProgressPhoto(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxSize = 2560;
+    const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) return file;
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));
+    if (!blob) return file;
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.webp`, { type: "image/webp" });
+  } catch {
+    return file;
+  }
+}
+
 const getRenderableImageUrl = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -251,6 +271,8 @@ export default function StageReportListClient({
   const [editTanggal, setEditTanggal] = useState("");
   const [editTanggalIso, setEditTanggalIso] = useState("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxRotation, setLightboxRotation] = useState(0);
+  const [lightboxScale, setLightboxScale] = useState(1);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState("");
 
@@ -2004,12 +2026,14 @@ export default function StageReportListClient({
                                     }
                                     return (
                                       <div className="flex items-center gap-3">
-                                        <button
-                                          onClick={() => setLightboxUrl(url)}
+                                        <a
+                                          href={url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
                                           className="overflow-hidden rounded-lg ring-1 ring-gray-200 shadow-sm hover:shadow-md transition-all duration-200 hover:ring-blue-300"
                                         >
                                           <img src={url} alt={a.label || "Foto"} className="block h-16 w-16 object-cover" />
-                                        </button>
+                                        </a>
                                         <div className="flex-1 min-w-0">
                                           <div className="text-xs text-gray-500 mb-1">Klik gambar untuk preview</div>
                                           <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-800 hover:underline break-all">
@@ -2095,19 +2119,19 @@ export default function StageReportListClient({
 
       {/* Modern Photo Lightbox */}
       {lightboxUrl && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center animate-in fade-in duration-300">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/90 backdrop-blur-sm animate-in fade-in duration-300"
-            onClick={() => setLightboxUrl(null)}
+            onClick={() => { setLightboxUrl(null); setLightboxRotation(0); setLightboxScale(1); }}
           />
 
           {/* Lightbox Card */}
-          <div className="relative max-w-5xl max-h-[90vh] animate-in slide-in-from-bottom-4 duration-500 transform-gpu" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden transform-gpu">
+          <div className="fixed inset-0 animate-in fade-in duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="relative h-full w-full overflow-hidden bg-black/90">
 
               {/* Header */}
-              <div className="bg-gray-900 px-6 py-4 flex items-center justify-between">
+              <div className="absolute inset-x-0 top-0 z-20 bg-gray-900/95 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
                     <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="currentColor">
@@ -2120,8 +2144,14 @@ export default function StageReportListClient({
                   </div>
                 </div>
 
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button type="button" onClick={() => setLightboxScale((value) => Math.max(0.5, value - 0.25))} className="rounded-lg bg-gray-800 px-3 py-2 text-sm text-white hover:bg-gray-700">- Zoom</button>
+                  <button type="button" onClick={() => setLightboxScale((value) => Math.min(3, value + 0.25))} className="rounded-lg bg-gray-800 px-3 py-2 text-sm text-white hover:bg-gray-700">+ Zoom</button>
+                  <button type="button" onClick={() => setLightboxRotation((value) => value - 90)} className="rounded-lg bg-gray-800 px-3 py-2 text-sm text-white hover:bg-gray-700">Kiri</button>
+                  <button type="button" onClick={() => { setLightboxRotation(0); setLightboxScale(1); }} className="rounded-lg bg-gray-800 px-3 py-2 text-sm text-white hover:bg-gray-700">Reset</button>
+                  <button type="button" onClick={() => setLightboxRotation((value) => value + 90)} className="rounded-lg bg-gray-800 px-3 py-2 text-sm text-white hover:bg-gray-700">Kanan</button>
                 <button
-                  onClick={() => setLightboxUrl(null)}
+                  onClick={() => { setLightboxUrl(null); setLightboxRotation(0); setLightboxScale(1); }}
                   className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-gray-800 text-white hover:bg-gray-700 transition-colors"
                   aria-label="Tutup preview"
                 >
@@ -2129,44 +2159,49 @@ export default function StageReportListClient({
                     <path d="M6.225 4.811a1 1 0 0 0-1.414 1.414L10.586 12 4.81 17.776a1 1 0 1 0 1.414 1.415L12 13.414l5.776 5.776a1 1 0 0 0 1.414-1.414L13.415 12l5.776-5.776a1 1 0 0 0-1.414-1.414L12 10.586 6.225 4.811Z" />
                   </svg>
                 </button>
+                </div>
               </div>
 
               {/* Image Container */}
-              <div className="relative bg-gray-100 p-6 flex items-center justify-center min-h-[400px]">
+              <div className="fixed inset-0 z-10 flex items-center justify-center overflow-auto bg-black/90 p-20 sm:p-24">
                 <img
                   src={lightboxUrl}
                   alt="Full size preview"
-                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                  className="object-contain rounded-lg shadow-2xl transition-transform duration-200"
+                  style={{
+                    position: "fixed",
+                    top: "50%",
+                    left: "50%",
+                    width: "auto",
+                    height: "auto",
+                    maxWidth: "88vw",
+                    maxHeight: "80vh",
+                    transform: `translate(-50%, -50%) rotate(${lightboxRotation}deg) scale(${lightboxScale})`,
+                  }}
                 />
 
                 {/* Image Info Overlay */}
-                <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm text-white px-4 py-2 rounded-lg">
+                <div className="absolute bottom-20 left-4 bg-black/70 backdrop-blur-sm text-white px-4 py-2 rounded-lg">
                   <div className="text-sm">
-                    Klik gambar untuk membuka di tab baru
+                    Gunakan toolbar untuk zoom dan memutar foto
                   </div>
                 </div>
               </div>
 
               {/* Footer Actions */}
-              <div className="bg-gray-50 px-6 py-4 flex items-center justify-between">
-                <div className="text-sm text-gray-600">
+              <div className="absolute inset-x-0 bottom-0 z-20 shrink-0 bg-gray-900/95 px-4 sm:px-6 py-3 sm:py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-gray-200">
                   Preview foto laporan progress
                 </div>
-                <div className="flex items-center gap-3">
-                  <a
-                    href={lightboxUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                      <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6a2 2 0 012 2v1.5a.5.5 0 001 0V8a3 3 0 00-3-3H5a3 3 0 00-3 3v11a3 3 0 003 3h11a3 3 0 003-3v-6a.5.5 0 00-.5-.5H18a.5.5 0 00-.5.5z"/>
-                      <path d="M15 3a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-2 0V5.41l-9.79 9.8a1 1 0 01-1.42-1.42L18.59 4H16a1 1 0 010-2z"/>
-                    </svg>
-                    Buka Full Size
-                  </a>
+                <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => setLightboxRotation((value) => value - 90)} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100" title="Putar ke kiri">↺ Kiri</button>
+                    <button type="button" onClick={() => setLightboxRotation((value) => value + 90)} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100" title="Putar ke kanan">↻ Kanan</button>
+                    <button type="button" onClick={() => setLightboxRotation(0)} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">Reset</button>
+                  <button type="button" onClick={() => setLightboxRotation(0)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+                    Reset Tampilan
+                  </button>
                   <button
-                    onClick={() => setLightboxUrl(null)}
+                    onClick={() => { setLightboxUrl(null); setLightboxRotation(0); setLightboxScale(1); }}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Tutup
@@ -2382,9 +2417,10 @@ export default function StageReportListClient({
                             for (const [key, photo] of Object.entries(editPhotos)) {
                               const index = Number(key);
                               const previous = editItem.answers?.[index];
-                              const safeName = photo.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+                              const compressedPhoto = await compressProgressPhoto(photo.file);
+                              const safeName = compressedPhoto.name.replace(/[^a-zA-Z0-9._-]/g, "_");
                               const photoRef = ref(storage, `${progressCollection}/${editItem.id}/${index + 1}_${crypto.randomUUID()}_${safeName}`);
-                              await uploadBytes(photoRef, photo.file, { contentType: photo.file.type });
+                              await uploadBytes(photoRef, compressedPhoto, { contentType: "image/webp" });
                               const url = await getDownloadURL(photoRef);
                               if (previous?.type === "photo") {
                                 updatedAnswers[index] = { ...previous, value: url };

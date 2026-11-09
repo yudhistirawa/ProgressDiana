@@ -42,6 +42,7 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxRotation, setLightboxRotation] = useState(0);
   const usesSingleActiveForm = projectKey === "bungtomo" || projectKey === "sampoerna";
 
   useEffect(() => {
@@ -297,9 +298,16 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
       )}
 
       {lightboxUrl && (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/85 p-4" onClick={() => setLightboxUrl(null)}>
-          <button type="button" onClick={() => setLightboxUrl(null)} className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white text-xl text-neutral-900" aria-label="Tutup foto">×</button>
-          <img src={lightboxUrl} alt="Foto laporan ukuran penuh" className="max-h-[90vh] max-w-full rounded-xl object-contain" onClick={(event) => event.stopPropagation()} />
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/85 p-4" onClick={() => { setLightboxUrl(null); setLightboxRotation(0); }}>
+          <button type="button" onClick={() => { setLightboxUrl(null); setLightboxRotation(0); }} className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white text-xl text-neutral-900" aria-label="Tutup foto">×</button>
+          <div className="relative flex max-h-[90vh] max-w-full flex-col items-center gap-3" onClick={(event) => event.stopPropagation()}>
+            <img src={lightboxUrl} alt="Foto laporan ukuran penuh" className="max-h-[82vh] max-w-full rounded-xl object-contain transition-transform duration-200" style={{ transform: `rotate(${lightboxRotation}deg)` }} />
+            <div className="flex gap-2 rounded-full bg-white/95 p-2">
+              <button type="button" onClick={() => setLightboxRotation((value) => value - 90)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm">↺ Kiri</button>
+              <button type="button" onClick={() => setLightboxRotation(0)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm">Reset</button>
+              <button type="button" onClick={() => setLightboxRotation((value) => value + 90)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm">↻ Kanan</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

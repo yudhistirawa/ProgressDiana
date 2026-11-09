@@ -15,6 +15,8 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
   const { dailyStats, loading, error, filterMonth, setFilterMonth, filterYear, setFilterYear,
     selectedDate, selectedItems, detailLoading, loadDailyData, handleDateClick, closeModal } = useDailyData(progressCollection);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [zoomedImageRotation, setZoomedImageRotation] = useState(0);
+  const [zoomedImageScale, setZoomedImageScale] = useState(1);
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
@@ -359,10 +361,9 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
                               return (
                                 <div key={idx} className="space-y-1">
                                   <div className="font-medium text-neutral-700 text-sm">{answer.label}</div>
-                                  <a
-                                    href={answer.value}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                  <button
+                                    type="button"
+                                    onClick={() => { setZoomedImageRotation(0); setZoomedImage(answer.value); }}
                                     className="block relative w-full max-w-2xl rounded-lg overflow-hidden border border-neutral-200 hover:border-red-400 transition-colors group"
                                     style={{
                                       height: answer.label?.toLowerCase().includes('geostamp') ? '400px' : 'auto',
@@ -389,7 +390,7 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
                                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                                       <span className="text-white text-xs bg-black/50 px-2 py-1 rounded">Klik untuk perbesar</span>
                                     </div>
-                                  </a>
+                                  </button>
                                   {answer.label?.toLowerCase().includes('geostamp') && (
                                     <button
                                       onClick={(e) => {
@@ -531,23 +532,31 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
       {zoomedImage && (
         <div 
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setZoomedImage(null)}
+          onClick={() => { setZoomedImage(null); setZoomedImageRotation(0); setZoomedImageScale(1); }}
         >
-          <div className="relative w-[95vw] h-[95vh]">
+          <div className="relative flex h-[95vh] w-[95vw] items-center justify-center overflow-auto">
             <img
               src={zoomedImage}
               alt="Zoomed view"
-              className="w-full h-full max-w-none max-h-none object-contain"
+              className="w-full h-full max-w-none max-h-none object-contain transition-transform duration-200"
+              style={{ transform: `rotate(${zoomedImageRotation}deg) scale(${zoomedImageScale})` }}
               onClick={(e) => e.stopPropagation()}
             />
             <button
-              onClick={() => setZoomedImage(null)}
+              onClick={() => { setZoomedImage(null); setZoomedImageRotation(0); setZoomedImageScale(1); }}
               className="absolute top-2 right-2 rounded-full p-2 bg-black/50 text-white hover:bg-black/70 transition-colors"
             >
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
               </svg>
             </button>
+            <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-wrap justify-center gap-2 rounded-full bg-black/70 p-2 shadow-xl">
+              <button type="button" onClick={(event) => { event.stopPropagation(); setZoomedImageScale((value) => Math.max(0.5, value - 0.25)); }} className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-neutral-900">- Zoom</button>
+              <button type="button" onClick={(event) => { event.stopPropagation(); setZoomedImageScale((value) => Math.min(3, value + 0.25)); }} className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-neutral-900">+ Zoom</button>
+              <button type="button" onClick={(event) => { event.stopPropagation(); setZoomedImageRotation((value) => value - 90); }} className="rounded-full bg-white px-3 py-1 text-sm text-neutral-900">↺</button>
+              <button type="button" onClick={(event) => { event.stopPropagation(); setZoomedImageRotation(0); setZoomedImageScale(1); }} className="rounded-full bg-white px-3 py-1 text-sm text-neutral-900">Reset</button>
+              <button type="button" onClick={(event) => { event.stopPropagation(); setZoomedImageRotation((value) => value + 90); }} className="rounded-full bg-white px-3 py-1 text-sm text-neutral-900">↻</button>
+            </div>
           </div>
         </div>
       )}

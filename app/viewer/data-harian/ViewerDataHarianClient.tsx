@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDailyData } from "@/lib/useDailyData";
 
 type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
@@ -12,6 +12,21 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
   const { dailyStats, loading, error, filterMonth, setFilterMonth, filterYear, setFilterYear,
     selectedDate, selectedItems, detailLoading, loadDailyData, handleDateClick, closeModal } = useDailyData(progressCollection);
   const detailCardId = "viewer-detail-modal-card";
+  const [viewerPhotoUrl, setViewerPhotoUrl] = useState<string | null>(null);
+  const [viewerPhotoRotation, setViewerPhotoRotation] = useState(0);
+  const [viewerPhotoScale, setViewerPhotoScale] = useState(1);
+
+  const openViewerPhoto = (url: string) => {
+    setViewerPhotoRotation(0);
+    setViewerPhotoScale(1);
+    setViewerPhotoUrl(url);
+  };
+
+  const closeViewerPhoto = () => {
+    setViewerPhotoUrl(null);
+    setViewerPhotoRotation(0);
+    setViewerPhotoScale(1);
+  };
 
   // Pastikan modal langsung terlihat tanpa user scroll manual
   useEffect(() => {
@@ -240,12 +255,12 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
                               return (
                                 <div key={idx} className="space-y-1">
                                   <div className="font-medium text-neutral-700 text-sm">{answer.label}</div>
-                                  <a href={answer.value} target="_blank" rel="noopener noreferrer" className="block relative w-full max-w-xs rounded-lg overflow-hidden border-2 border-transparent hover:border-red-400 transition-all group">
+                                  <button type="button" onClick={() => openViewerPhoto(answer.value)} className="block relative w-full max-w-xs rounded-lg overflow-hidden border-2 border-transparent hover:border-red-400 transition-all group text-left">
                                     <img src={answer.value} alt={answer.label} className="w-full h-auto object-contain min-h-[150px] rounded-md" />
                                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-md">
                                       <span className="text-white text-xs bg-black/50 px-2 py-1 rounded">Klik untuk perbesar</span>
                                     </div>
-                                  </a>
+                                  </button>
                                 </div>
                               );
                             }
@@ -265,10 +280,10 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
                         <div className="text-xs font-semibold text-neutral-500 uppercase mb-2 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M1 5.25A2.25 2.25 0 013.25 3h13.5A2.25 2.25 0 0119 5.25v9.5A2.25 2.25 0 0116.75 17H3.25A2.25 2.25 0 011 14.75v-9.5zm1.5 5.81v3.69c0 .414.336.75.75.75h13.5a.75.75 0 00.75-.75v-2.69l-2.22-2.219a.75.75 0 00-1.06 0l-1.91 1.909-.47-1.036a.75.75 0 00-1.294-.59l-3.026 3.027a.75.75 0 000 1.06l2.22 2.22h-5.69a.75.75 0 01-.75-.75v-3.69l1.91-1.909a.75.75 0 00-1.06-1.06l-1.91 1.909zM1.5 5.25c0-.414.336-.75.75-.75h13.5a.75.75 0 01.75.75v.09l-2.22 2.219a.75.75 0 01-1.06 0l-1.91-1.909-.47 1.036a.75.75 0 01-1.294.59l-3.026-3.027a.75.75 0 010-1.06l2.22-2.22H3.25a.75.75 0 00-.75.75v.09z" clipRule="evenodd" /></svg>Foto</div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {Object.entries(item.photos).map(([key, url]: [string, any]) => (
-                            <a key={key} href={url} target="_blank" rel="noopener noreferrer" className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200 hover:border-red-400 transition-colors group">
+                            <button key={key} type="button" onClick={() => openViewerPhoto(url)} className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200 hover:border-red-400 transition-colors group text-left">
                               <img src={url} alt={key} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
-                            </a>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -286,6 +301,22 @@ export default function ViewerDataHarianClient({ project = "diana" }: { project?
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewerPhotoUrl && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-4" onClick={closeViewerPhoto}>
+          <div className="relative flex max-h-[95vh] max-w-[95vw] flex-col items-center gap-3" onClick={(event) => event.stopPropagation()}>
+            <img src={viewerPhotoUrl} alt="Foto laporan ukuran penuh" className="max-h-[82vh] max-w-[95vw] rounded-xl object-contain transition-transform duration-200" style={{ transform: `rotate(${viewerPhotoRotation}deg) scale(${viewerPhotoScale})` }} />
+            <div className="flex gap-2 rounded-full bg-white/95 p-2">
+              <button type="button" onClick={() => setViewerPhotoScale((value) => Math.max(0.5, value - 0.25))} className="rounded-full bg-neutral-100 px-3 py-1 text-sm">- Zoom</button>
+              <button type="button" onClick={() => setViewerPhotoScale((value) => Math.min(3, value + 0.25))} className="rounded-full bg-neutral-100 px-3 py-1 text-sm">+ Zoom</button>
+              <button type="button" onClick={() => setViewerPhotoRotation((value) => value - 90)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm">Kiri</button>
+              <button type="button" onClick={() => { setViewerPhotoRotation(0); setViewerPhotoScale(1); }} className="rounded-full bg-neutral-100 px-3 py-1 text-sm">Reset</button>
+              <button type="button" onClick={() => setViewerPhotoRotation((value) => value + 90)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm">Kanan</button>
+              <button type="button" onClick={closeViewerPhoto} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">Tutup</button>
             </div>
           </div>
         </div>
