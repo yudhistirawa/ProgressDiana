@@ -14,7 +14,7 @@ type DisplayItem = {
   title: string;
   subtitle: string;
   answers?: { label: string; type: string; value: any }[];
-  files?: string[];
+  files?: { url: string; rotation?: number }[];
 };
 
 type ProjectKey = "diana" | "bungtomo" | "bisma" | "sampoerna";
@@ -79,10 +79,10 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
             if (!matchesStage) return [];
 
             const answers = Array.isArray(data?.answers)
-              ? (data.answers as any[]).map((a) => ({ label: a.label, type: a.type, value: a.value }))
+              ? (data.answers as any[]).map((a) => ({ label: a.label, type: a.type, value: a.value, rotation: Number(a.rotation) || 0 }))
               : undefined;
             const firstTwo = answers?.filter((a) => a.type !== "photo").map((a) => String(a.value || "")).filter(Boolean).slice(0, 2) || [];
-            const files = answers?.filter((a) => a.type === "photo").flatMap((a) => photoValues(a.value)) || [];
+            const files = answers?.filter((a) => a.type === "photo").flatMap((a) => photoValues(a.value).map((url) => ({ url, rotation: Number(a.rotation) || 0 }))) || [];
             const title = data?.pekerjaan || firstTwo[0] || "Laporan Progres";
             const subtitle = data?.lokasi || firstTwo[1] || data?.alamat || "-";
             const createdAt = toMillis(data.createdAt ?? data.uploadedAt ?? data.ts);
@@ -182,10 +182,10 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
         {filtered.map((i) => (
           <li key={i.id} className="rounded-2xl ring-1 ring-neutral-200 bg-white shadow-sm overflow-hidden">
             <div className="px-3 py-2.5 flex items-center gap-3">
-              {i.files?.[0] ? (
-                <button type="button" onClick={() => setLightboxUrl(i.files?.[0] || null)} className="h-10 w-10 shrink-0 overflow-hidden rounded-full ring-1 ring-neutral-200" title="Lihat foto">
-                  <img src={i.files[0]} alt="Foto laporan" className="h-full w-full object-cover" />
-                </button>
+              {i.files?.[0]?.url ? (
+                <a href={i.files[0].url} target="_blank" rel="noopener noreferrer" className="h-10 w-10 shrink-0 overflow-hidden rounded-full ring-1 ring-neutral-200" title="Lihat foto asli">
+                  <img src={i.files[0].url} alt="Foto laporan" className="h-full w-full object-cover" style={{ transform: `rotate(${i.files[0].rotation || 0}deg)` }} />
+                </a>
               ) : (
                 <div className="h-10 w-10 shrink-0 rounded-full bg-neutral-100 grid place-items-center text-[10px] text-neutral-500 ring-1 ring-neutral-200">
                   Tanpa foto
@@ -284,10 +284,10 @@ export default function RiwayatTahapClient({ stage, project = "diana" }: { stage
                 <div className="pt-3">
                   <div className="mb-2 text-neutral-500">Foto laporan</div>
                   <div className="grid grid-cols-3 gap-2">
-                    {selected.files.map((url, index) => (
-                      <button key={`${url}-${index}`} type="button" onClick={() => setLightboxUrl(url)} className="overflow-hidden rounded-xl ring-1 ring-neutral-200" title={`Lihat foto ${index + 1}`}>
-                        <img src={url} alt={`Foto laporan ${index + 1}`} className="aspect-square w-full object-cover" />
-                      </button>
+                    {selected.files.map((photo, index) => (
+                      <a key={`${photo.url}-${index}`} href={photo.url} target="_blank" rel="noopener noreferrer" className="overflow-hidden rounded-xl ring-1 ring-neutral-200" title={`Lihat foto ${index + 1}`}>
+                        <img src={photo.url} alt={`Foto laporan ${index + 1}`} className="aspect-square w-full object-cover" style={{ transform: `rotate(${photo.rotation || 0}deg)` }} />
+                      </a>
                     ))}
                   </div>
                 </div>

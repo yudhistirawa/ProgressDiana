@@ -24,7 +24,7 @@ type Item = {
   elemen_pekerjaan?: string;
   elementPekerjaan?: string;
   // new dynamic
-  answers?: { label: string; type: string; value: any }[];
+  answers?: { label: string; type: string; value: any; rotation?: number }[];
   files?: string[];
   tanggal: string;
   jam?: string;
@@ -203,13 +203,29 @@ export default function StageReportListClient({
     };
   }, [editItem?.id]);
 
-  const renderPhotoEditor = (index: number, value: unknown, label: string) => {
+  const renderPhotoEditor = (index: number, value: unknown, label: string, rotation = 0) => {
     const pending = editPhotos[index];
     const url = pending?.preview || getRenderableImageUrl(value);
     return (
       <div className="space-y-3">
         {url ? (
-          <img src={url} alt={label || "Foto"} className="h-32 w-32 object-cover rounded-lg ring-1 ring-gray-200" />
+          <div className="flex items-center gap-3">
+            <img src={url} alt={label || "Foto"} className="h-32 w-32 object-contain rounded-lg bg-neutral-100 ring-1 ring-gray-200" style={{ transform: `rotate(${rotation}deg)` }} />
+            <button
+              type="button"
+              disabled={savingEdit}
+              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+              onClick={() => {
+                if (!editItem?.answers?.[index]) return;
+                const updatedAnswers = editItem.answers.map((answer, answerIndex) =>
+                  answerIndex === index ? { ...answer, rotation: (Number(answer.rotation) || 0) + 90 } : answer
+                );
+                setEditItem({ ...editItem, answers: updatedAnswers });
+              }}
+            >
+              ↻ Putar 90° ({rotation}°)
+            </button>
+          </div>
         ) : (
           <div className="text-sm text-gray-500 italic">{value ? `File tersimpan: ${String(value)}` : "Tidak ada foto"}</div>
         )}
@@ -1151,6 +1167,7 @@ export default function StageReportListClient({
     label: string;
     type: string;
     value: any;
+    rotation?: number;
   }
 
   const prepareDisplayAnswers = (item: any): Answer[] => {
@@ -2032,7 +2049,7 @@ export default function StageReportListClient({
                                           rel="noopener noreferrer"
                                           className="overflow-hidden rounded-lg ring-1 ring-gray-200 shadow-sm hover:shadow-md transition-all duration-200 hover:ring-blue-300"
                                         >
-                                          <img src={url} alt={a.label || "Foto"} className="block h-16 w-16 object-cover" />
+                                          <img src={url} alt={a.label || "Foto"} className="block h-16 w-16 object-cover" style={{ transform: `rotate(${Number((a as any).rotation) || 0}deg)` }} />
                                         </a>
                                         <div className="flex-1 min-w-0">
                                           <div className="text-xs text-gray-500 mb-1">Klik gambar untuk preview</div>
@@ -2520,7 +2537,7 @@ export default function StageReportListClient({
                                 <div className="flex-1">
                                   <div className="text-sm font-medium text-gray-900 mb-2">{a.label}</div>
                                   {a.type === "photo" ? (
-                                    renderPhotoEditor(idx, a.value, a.label)
+                                  renderPhotoEditor(idx, a.value, a.label, Number((a as any).rotation) || 0)
                                   ) : (
                                     <input
                                       ref={idx === 0 ? firstInputRef : null}

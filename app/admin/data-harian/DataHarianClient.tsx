@@ -361,9 +361,10 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
                               return (
                                 <div key={idx} className="space-y-1">
                                   <div className="font-medium text-neutral-700 text-sm">{answer.label}</div>
-                                  <button
-                                    type="button"
-                                    onClick={() => { setZoomedImageRotation(0); setZoomedImage(answer.value); }}
+                                  <a
+                                    href={answer.value}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     className="block relative w-full max-w-2xl rounded-lg overflow-hidden border border-neutral-200 hover:border-red-400 transition-colors group"
                                     style={{
                                       height: answer.label?.toLowerCase().includes('geostamp') ? '400px' : 'auto',
@@ -374,10 +375,10 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
                                       src={answer.value}
                                       alt={answer.label}
                                       style={{
-                                        transform: answer.label?.toLowerCase().includes('geostamp') ? 'scale(2)' : 'none',
+                                        transform: `${answer.label?.toLowerCase().includes('geostamp') ? 'scale(2) ' : ''}rotate(${Number(answer.rotation) || 0}deg)`,
                                         transformOrigin: 'bottom'
                                       }}
-                                      className="w-full h-auto object-contain min-h-[300px] group-hover:scale-105 transition-transform"
+                                    className="block w-full aspect-video max-h-[420px] bg-neutral-900 object-contain group-hover:scale-105 transition-transform"
                                       onError={(e) => {
                                         // Fallback if image fails to load
                                         e.currentTarget.style.display = 'none';
@@ -390,17 +391,11 @@ export default function DataHarianClient({ project = "diana" }: { project?: Proj
                                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                                       <span className="text-white text-xs bg-black/50 px-2 py-1 rounded">Klik untuk perbesar</span>
                                     </div>
-                                  </button>
+                                  </a>
                                   {answer.label?.toLowerCase().includes('geostamp') && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        setZoomedImage(answer.value);
-                                      }}
-                                      className="mt-2 text-xs text-blue-600 hover:text-blue-800 hover:underline"
-                                    >
+                                    <a href={answer.value} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs text-blue-600 hover:text-blue-800 hover:underline">
                                       🔍 Lihat Geostamp Diperbesar
-                                    </button>
+                                    </a>
                                   )}
                                 </div>
                               );
